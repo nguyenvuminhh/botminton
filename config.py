@@ -3,6 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-MONGODB_URI = os.getenv("MONGODB_URI")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "botminton")
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+MONGODB_URI = os.environ.get("MONGODB_URI")
+DATABASE_NAME = os.environ.get("DATABASE_NAME", "botminton")
