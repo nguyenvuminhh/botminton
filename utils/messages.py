@@ -19,7 +19,7 @@ def get_money_message(period_money_report: PeriodMoneyReport) -> str:
 def get_react_after_sending_money_message() -> str:
     return "Ai gửi rồi thì react tin nhắn này giúp em ạ"
 
-def get_poll_title(start_time: str, end_time: str, location: str, day_of_the_week_index: str) -> str:
+def get_poll_title(start_time: str, end_time: str, location: str, day_of_the_week_index: int) -> str:
     target_day = format_to_dd_mm(get_next_day(date.today(), day_of_the_week_index))
     day_of_the_week_name = get_day_of_the_week_name(day_of_the_week_index)
 
