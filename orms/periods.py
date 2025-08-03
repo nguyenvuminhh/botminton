@@ -1,8 +1,6 @@
 from mongoengine import (
-    Document, StringField, IntField, BooleanField,
-    FloatField, DateField, ReferenceField, CASCADE
+    Document, IntField, DateField
 )
-from datetime import datetime
 
 class Periods(Document):
     start_date = DateField(required=True)
