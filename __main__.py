@@ -2,8 +2,7 @@ from commands.start import start
 from config import BOT_TOKEN
 from constants import Commands
 from utils.database import db_manager
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler
 import logging
 
 # Configure logging

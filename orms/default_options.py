@@ -1,8 +1,6 @@
 from mongoengine import (
-    Document, StringField, IntField, BooleanField,
-    FloatField, DateField, ReferenceField, CASCADE
+    Document, StringField, IntField
 )
-from datetime import datetime
 
 class DefaultOptions(Document):
     default_location = StringField(default="Unisport")

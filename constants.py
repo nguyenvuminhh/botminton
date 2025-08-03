@@ -1,4 +1,4 @@
-from enum import Enum, StrEnum, auto
+from enum import StrEnum
 
 class Commands(StrEnum):
     START = "start"

@@ -1,8 +1,6 @@
 from mongoengine import (
-    Document, StringField, IntField, BooleanField,
-    FloatField, DateField, ReferenceField, CASCADE
+    Document, FloatField, ReferenceField, CASCADE
 )
-from datetime import datetime
 
 from orms.periods import Periods
 from orms.users import Users
