@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.users import UserService, create_user, get_user, update_user, delete_user, list_users, list_all_users
+from services.users import UserService, create_user, get_user, update_user, delete_user, list_all_users
 from utils.database import db_manager
 import logging
 
@@ -67,14 +67,7 @@ def test_users_crud():
             print(f"✅ Updated user: {updated_user.telegram_user_name}")
         else:
             print("❌ Failed to update user")
-        
-        # 4. LIST USERS BY TELEGRAM IDS
-        print("\n4️⃣ Listing users by telegram IDs...")
-        users_by_ids = list_users([test_telegram_id, test_telegram_id_2, "nonexistent"])
-        print(f"✅ Found {len(users_by_ids)} users from telegram IDs:")
-        for u in users_by_ids:
-            print(f"   - {u.telegram_user_name} (ID: {u.telegram_id}) - Admin: {u.is_admin}")
-        
+                
         # 5. LIST ALL USERS
         print("\n5️⃣ Listing all users...")
         all_users = list_all_users(limit=10)

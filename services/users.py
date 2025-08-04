@@ -90,17 +90,6 @@ class UserService:
             return False
 
     @staticmethod
-    def list_users_by_telegram_id(telegram_ids: List[str]) -> List[Users]:
-        try:
-            users = list(Users.objects.filter(telegram_id__in=telegram_ids))
-            logger.debug(f"Found {len(users)} users from {len(telegram_ids)} telegram_ids")
-            return users
-
-        except Exception as e:
-            logger.error(f"Failed to list users by telegram_ids: {e}")
-            return []
-
-    @staticmethod
     def list_all_users(limit: int = 100, offset: int = 0) -> List[Users]:
         try:
             users = list(Users.objects.skip(offset).limit(limit))
@@ -126,9 +115,6 @@ def update_user(telegram_id: str, **kwargs) -> Optional[Users]:
 
 def delete_user(telegram_id: str) -> bool:
     return UserService.delete_user_by_telegram_id(telegram_id)
-
-def list_users(telegram_ids: List[str]) -> List[Users]:
-    return UserService.list_users_by_telegram_id(telegram_ids)
 
 def list_all_users(limit: int = 100, offset: int = 0) -> List[Users]:
     return UserService.list_all_users(limit, offset)
