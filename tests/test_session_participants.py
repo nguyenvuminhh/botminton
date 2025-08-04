@@ -3,12 +3,11 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.session_participants import (
-    SessionParticipantService, create_participant, get_participant, 
+    create_participant, get_participant, 
     get_participant_by_user_and_session, update_participant, 
     update_participant_by_user_and_session, delete_participant, 
     delete_participant_by_user_and_session, list_session_participants, 
-    list_user_participations, list_all_participants, get_session_participant_count,
-    get_paid_participants, get_unpaid_participants, mark_as_paid, mark_as_unpaid,
+    list_user_participations, get_session_participant_count,
     update_additional_participants
 )
 from services.users import create_user, delete_user
@@ -29,13 +28,11 @@ def setup_test_data():
         user1 = create_user(
             telegram_id="test_user_1",
             telegram_user_name="testuser1",
-            is_admin=False
         )
         
         user2 = create_user(
             telegram_id="test_user_2", 
             telegram_user_name="testuser2",
-            is_admin=True
         )
         
         # Create test period
@@ -137,15 +134,13 @@ def test_session_participants_crud():
             user_telegram_id=user_ids[0],
             session_date=session_dates[0],
             additional_participants=2,
-            has_paid=False
         )
         
-        # User2 participates in session 1 with no additional participants, already paid
+        # User2 participates in session 1 with no additional participants
         participant2 = create_participant(
             user_telegram_id=user_ids[1],
             session_date=session_dates[0],
             additional_participants=0,
-            has_paid=True
         )
         
         # User1 participates in session 2
@@ -153,30 +148,26 @@ def test_session_participants_crud():
             user_telegram_id=user_ids[0],
             session_date=session_dates[1],
             additional_participants=1,
-            has_paid=False
         )
         
         if participant1:
             participant_ids.append(str(participant1.id))  # type: ignore
             print(f"✅ Created participant1: User {user_ids[0]} in session {session_dates[0]}")
-            print(f"   Additional participants: {participant1.additional_participants}, Paid: {participant1.has_paid}")
+            print(f"   Additional participants: {participant1.additional_participants}")
             # Assert participant1 values match expected
             assert participant1.user.telegram_id == user_ids[0], f"Expected user {user_ids[0]}, got {participant1.user.telegram_id}"  # type: ignore
             assert str(participant1.session.date) == session_dates[0], f"Expected session {session_dates[0]}, got {participant1.session.date}"  # type: ignore
             assert participant1.additional_participants == 2, f"Expected additional_participants 2, got {participant1.additional_participants}"
-            assert participant1.has_paid == False, f"Expected has_paid False, got {participant1.has_paid}"
         else:
             assert False, "Failed to create participant1"
             
         if participant2:
             participant_ids.append(str(participant2.id))  # type: ignore
             print(f"✅ Created participant2: User {user_ids[1]} in session {session_dates[0]}")
-            print(f"   Additional participants: {participant2.additional_participants}, Paid: {participant2.has_paid}")
             # Assert participant2 values match expected
             assert participant2.user.telegram_id == user_ids[1], f"Expected user {user_ids[1]}, got {participant2.user.telegram_id}"  # type: ignore
             assert str(participant2.session.date) == session_dates[0], f"Expected session {session_dates[0]}, got {participant2.session.date}"  # type: ignore
             assert participant2.additional_participants == 0, f"Expected additional_participants 0, got {participant2.additional_participants}"
-            assert participant2.has_paid == True, f"Expected has_paid True, got {participant2.has_paid}"
         else:
             assert False, "Failed to create participant2"
             
@@ -187,7 +178,6 @@ def test_session_participants_crud():
             assert participant3.user.telegram_id == user_ids[0], f"Expected user {user_ids[0]}, got {participant3.user.telegram_id}"  # type: ignore
             assert str(participant3.session.date) == session_dates[1], f"Expected session {session_dates[1]}, got {participant3.session.date}"  # type: ignore
             assert participant3.additional_participants == 1, f"Expected additional_participants 1, got {participant3.additional_participants}"
-            assert participant3.has_paid == False, f"Expected has_paid False, got {participant3.has_paid}"
         else:
             assert False, "Failed to create participant3"
         
@@ -198,12 +188,10 @@ def test_session_participants_crud():
             
             if retrieved_participant:
                 print(f"✅ Retrieved participant: {retrieved_participant.user.telegram_id} in session {retrieved_participant.session.date}")  # type: ignore
-                print(f"   Additional: {retrieved_participant.additional_participants}, Paid: {retrieved_participant.has_paid}")
                 # Assert retrieved values match expected
                 assert retrieved_participant.user.telegram_id == user_ids[0], f"Expected user {user_ids[0]}, got {retrieved_participant.user.telegram_id}"  # type: ignore
                 assert str(retrieved_participant.session.date) == session_dates[0], f"Expected session {session_dates[0]}, got {retrieved_participant.session.date}"  # type: ignore
                 assert retrieved_participant.additional_participants == 2, f"Expected additional_participants 2, got {retrieved_participant.additional_participants}"
-                assert retrieved_participant.has_paid == False, f"Expected has_paid False, got {retrieved_participant.has_paid}"
             else:
                 assert False, "Participant not found when it should exist"
         
@@ -216,7 +204,6 @@ def test_session_participants_crud():
             # Assert retrieved values match expected
             assert retrieved_by_user_session.user.telegram_id == user_ids[1], f"Expected user {user_ids[1]}, got {retrieved_by_user_session.user.telegram_id}"  # type: ignore
             assert str(retrieved_by_user_session.session.date) == session_dates[0], f"Expected session {session_dates[0]}, got {retrieved_by_user_session.session.date}"  # type: ignore
-            assert retrieved_by_user_session.has_paid == True, f"Expected has_paid True, got {retrieved_by_user_session.has_paid}"
         else:
             assert False, "Participant not found when it should exist"
         
@@ -226,14 +213,12 @@ def test_session_participants_crud():
             updated_participant = update_participant(
                 participant_ids[0],
                 additional_participants=3,
-                has_paid=True
             )
             
             if updated_participant:
-                print(f"✅ Updated participant: Additional={updated_participant.additional_participants}, Paid={updated_participant.has_paid}")
+                print(f"✅ Updated participant: Additional={updated_participant.additional_participants}")
                 # Assert updated values match expected
                 assert updated_participant.additional_participants == 3, f"Expected additional_participants 3, got {updated_participant.additional_participants}"
-                assert updated_participant.has_paid == True, f"Expected has_paid True, got {updated_participant.has_paid}"
             else:
                 assert False, "Failed to update participant"
         
@@ -262,7 +247,7 @@ def test_session_participants_crud():
         assert len(session1_participants) == 2, f"Expected 2 participants for session 1, got {len(session1_participants)}"
         
         for p in session1_participants:
-            print(f"   - User {p.user.telegram_id}: +{p.additional_participants} additional, Paid: {p.has_paid}")  # type: ignore
+            print(f"   - User {p.user.telegram_id}: +{p.additional_participants} additional")  # type: ignore
             # Assert each participant belongs to the correct session
             assert str(p.session.date) == session_dates[0], f"Expected session {session_dates[0]}, got {p.session.date}"  # type: ignore
         
@@ -310,42 +295,6 @@ def test_session_participants_crud():
         expected_session2_count = 1 + 5
         assert session2_count == expected_session2_count, f"Expected {expected_session2_count} total participants for session 2, got {session2_count}"
         
-        # 9. GET PAID AND UNPAID PARTICIPANTS
-        print("\n9️⃣ Getting paid and unpaid participants...")
-        paid_participants = get_paid_participants(session_dates[0])
-        unpaid_participants = get_unpaid_participants(session_dates[0])
-        
-        print(f"✅ Paid participants in session {session_dates[0]}: {len(paid_participants)}")
-        print(f"✅ Unpaid participants in session {session_dates[0]}: {len(unpaid_participants)}")
-        
-        # Assert we have the expected counts
-        # After updates: participant1 (user1) is now paid, participant2 (user2) was already paid
-        assert len(paid_participants) == 2, f"Expected 2 paid participants, got {len(paid_participants)}"
-        assert len(unpaid_participants) == 0, f"Expected 0 unpaid participants, got {len(unpaid_participants)}"
-        
-        for p in paid_participants:
-            print(f"   - Paid: User {p.user.telegram_id}")  # type: ignore
-            assert p.has_paid == True, f"Expected has_paid True for paid participant, got {p.has_paid}"
-        
-        # 10. MARK AS PAID/UNPAID
-        print("\n🔟 Testing mark as paid/unpaid...")
-        
-        # Mark user1 in session2 as paid
-        marked_paid = mark_as_paid(user_ids[0], session_dates[1])
-        if marked_paid:
-            print(f"✅ Marked user {user_ids[0]} as paid for session {session_dates[1]}")
-            assert marked_paid.has_paid == True, f"Expected has_paid True after marking as paid, got {marked_paid.has_paid}"
-        else:
-            assert False, "Failed to mark participant as paid"
-        
-        # Mark user2 in session1 as unpaid
-        marked_unpaid = mark_as_unpaid(user_ids[1], session_dates[0])
-        if marked_unpaid:
-            print(f"✅ Marked user {user_ids[1]} as unpaid for session {session_dates[0]}")
-            assert marked_unpaid.has_paid == False, f"Expected has_paid False after marking as unpaid, got {marked_unpaid.has_paid}"
-        else:
-            assert False, "Failed to mark participant as unpaid"
-        
         # 11. UPDATE ADDITIONAL PARTICIPANTS
         print("\n1️⃣1️⃣ Testing update additional participants...")
         updated_additional = update_additional_participants(user_ids[1], session_dates[0], 10)
@@ -362,11 +311,10 @@ def test_session_participants_crud():
             user_telegram_id=user_ids[0],
             session_date=session_dates[0],  # Same user and session as participant1
             additional_participants=999,
-            has_paid=False
         )
         
         if duplicate_participant:
-            print(f"ℹ️  Duplicate handled - returned existing participant")
+            print("ℹ️  Duplicate handled - returned existing participant")
             print(f"   Original values preserved: Additional={duplicate_participant.additional_participants}")
             # Assert duplicate returns the existing participant with original values
             assert duplicate_participant.user.telegram_id == user_ids[0], f"Expected user {user_ids[0]}, got {duplicate_participant.user.telegram_id}"  # type: ignore
@@ -392,7 +340,7 @@ def test_session_participants_crud():
             print("✅ Non-existent user participant get properly handled")
         
         # Update non-existent participant
-        non_existent_update = update_participant("non_existent_id_123", has_paid=True)
+        non_existent_update = update_participant("non_existent_id_123")
         assert non_existent_update is None, f"Expected None for non-existent participant update, got {non_existent_update}"
         if non_existent_update is None:
             print("✅ Non-existent participant update properly handled")
@@ -447,8 +395,8 @@ def test_session_participants_crud():
         try:
             if 'test_data' in locals() and test_data:
                 cleanup_test_data(test_data)
-        except:
-            pass
+        except Exception as cleanup_error:
+            logger.error(f"Cleanup failed: {cleanup_error}")
         
         # Disconnect from database
         db_manager.disconnect()
@@ -481,7 +429,6 @@ def test_session_participants_edge_cases():
             user_telegram_id="non_existent_user_999",
             session_date=session_dates[0],
             additional_participants=1,
-            has_paid=False
         )
         
         assert invalid_user_participant is None, f"Expected None for invalid user, got {invalid_user_participant}"
@@ -493,7 +440,6 @@ def test_session_participants_edge_cases():
             user_telegram_id=user_ids[0],
             session_date="2099-12-31",  # Non-existent session
             additional_participants=1,
-            has_paid=False
         )
         
         assert invalid_session_participant is None, f"Expected None for invalid session, got {invalid_session_participant}"
@@ -508,13 +454,11 @@ def test_session_participants_edge_cases():
             user_telegram_id=user_ids[0],
             session_date=session_dates[0],
             additional_participants=999,
-            has_paid=True
         )
         
         if edge_participant:
             print(f"✅ Created participant with large additional count: {edge_participant.additional_participants}")
             assert edge_participant.additional_participants == 999, f"Expected additional_participants 999, got {edge_participant.additional_participants}"
-            assert edge_participant.has_paid == True, f"Expected has_paid True, got {edge_participant.has_paid}"
             
             # Clean up edge case participant
             delete_result = delete_participant(str(edge_participant.id))  # type: ignore
@@ -546,9 +490,9 @@ def test_session_participants_edge_cases():
         try:
             if test_data:
                 cleanup_test_data(test_data)
-        except:
-            pass
-        
+        except Exception as cleanup_error:
+            logger.error(f"Cleanup failed: {cleanup_error}")
+
         db_manager.disconnect()
         logger.info("✅ Disconnected from database")
 

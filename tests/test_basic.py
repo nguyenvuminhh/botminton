@@ -26,7 +26,7 @@ def test_basic_functionality():
         
         # 1. Test Users
         print("\n1️⃣ Testing Users...")
-        user = create_user("test_user_123", "testuser", False)
+        user = create_user("test_user_123", "testuser")
         if user:
             print(f"✅ Created user: {user.telegram_id}")
             
