@@ -2,7 +2,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.users import UserService, create_user, get_user, update_user, delete_user, list_all_users
+import config
+from services.users import create_user, get_user, update_user, delete_user, list_all_users
 from utils.database import db_manager
 import logging
 
@@ -18,7 +19,7 @@ def test_users_crud():
         logger.info("✅ Connected to database")
         
         # Test data
-        test_telegram_id = "123456789"
+        test_telegram_id = config.ADMIN_1_USER_ID
         test_telegram_id_2 = "987654321"
         
         print("\n🧪 Testing Users CRUD Operations")
@@ -29,13 +30,11 @@ def test_users_crud():
         user1 = create_user(
             telegram_id=test_telegram_id,
             telegram_user_name="testuser1",
-            is_admin=False
         )
         
         user2 = create_user(
             telegram_id=test_telegram_id_2,
             telegram_user_name="testuser2", 
-            is_admin=True
         )
         
         if user1:
