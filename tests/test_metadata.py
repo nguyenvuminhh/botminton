@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 def test_metadata_ru():
     """Test Read and Update operations for Metadata model"""
+    original_metadata = None
     try:
         # Connect to database
         db_manager.connect()
@@ -22,10 +23,19 @@ def test_metadata_ru():
         print("=" * 50)
         
         # 0. CREATE METADATA (using ORM directly since service only has RU)
-        print("\n0️⃣ Creating metadata...")
+        print("\n0️⃣ Creating/Getting metadata...")
         metadata = Metadata.create()
         if metadata:
-            print("✅ Created/Retrieved metadata singleton")
+            # Save original values for restoration
+            original_metadata = {
+                'default_location': metadata.default_location,
+                'default_start_time': metadata.default_start_time,
+                'default_end_time': metadata.default_end_time,
+                'default_day_of_the_week_index': metadata.default_day_of_the_week_index,
+                'common_group_chat_id': metadata.common_group_chat_id,
+                'admin_group_chat_id': metadata.admin_group_chat_id
+            }
+            print("✅ Created/Retrieved metadata singleton and saved original values")
             print(f"   Location: {metadata.default_location}")
             print(f"   Start Time: {metadata.default_start_time}")
             print(f"   End Time: {metadata.default_end_time}")
@@ -104,31 +114,49 @@ def test_metadata_ru():
             print(f"   Start Time: {partial_update.default_start_time} (should be unchanged)")
             print(f"   Common Chat ID: {partial_update.common_group_chat_id}")
         
-        # 6. RESET TO DEFAULTS
-        print("\n6️⃣ Resetting to default values...")
-        reset_metadata = update_metadata(
-            default_location="Unisport",
-            default_start_time="20:30",
-            default_end_time="22:00",
-            default_day_of_the_week_index=5,
-            common_group_chat_id="0",
-            admin_group_chat_id="0"
-        )
-        
-        if reset_metadata:
-            print("✅ Reset to defaults:")
-            print(f"   Location: {reset_metadata.default_location}")
-            print(f"   Start Time: {reset_metadata.default_start_time}")
-            print(f"   End Time: {reset_metadata.default_end_time}")
-            print(f"   Day Index: {reset_metadata.default_day_of_the_week_index}")
-            print(f"   Common Chat ID: {reset_metadata.common_group_chat_id}")
-            print(f"   Admin Chat ID: {reset_metadata.admin_group_chat_id}")
+        # 6. RESTORE ORIGINAL VALUES
+        print("\n6️⃣ Restoring original values...")
+        if original_metadata:
+            restored_metadata = update_metadata(
+                default_location=original_metadata['default_location'],
+                default_start_time=original_metadata['default_start_time'],
+                default_end_time=original_metadata['default_end_time'],
+                default_day_of_the_week_index=original_metadata['default_day_of_the_week_index'],
+                common_group_chat_id=original_metadata['common_group_chat_id'],
+                admin_group_chat_id=original_metadata['admin_group_chat_id']
+            )
+            
+            if restored_metadata:
+                print("✅ Restored original values:")
+                print(f"   Location: {restored_metadata.default_location}")
+                print(f"   Start Time: {restored_metadata.default_start_time}")
+                print(f"   End Time: {restored_metadata.default_end_time}")
+                print(f"   Day Index: {restored_metadata.default_day_of_the_week_index}")
+                print(f"   Common Chat ID: {restored_metadata.common_group_chat_id}")
+                print(f"   Admin Chat ID: {restored_metadata.admin_group_chat_id}")
         
         print("\n🎉 All metadata RU operations completed successfully!")
         
     except Exception as e:
         logger.error(f"Test failed: {e}")
         print(f"❌ Test failed: {e}")
+        
+        # Attempt to restore original values even if test failed
+        if original_metadata:
+            print("\n🔄 Attempting to restore original values after error...")
+            try:
+                update_metadata(
+                    default_location=original_metadata['default_location'],
+                    default_start_time=original_metadata['default_start_time'],
+                    default_end_time=original_metadata['default_end_time'],
+                    default_day_of_the_week_index=original_metadata['default_day_of_the_week_index'],
+                    common_group_chat_id=original_metadata['common_group_chat_id'],
+                    admin_group_chat_id=original_metadata['admin_group_chat_id']
+                )
+                print("✅ Original values restored after error")
+            except Exception as restore_error:
+                logger.error(f"Failed to restore original values: {restore_error}")
+                print(f"❌ Failed to restore original values: {restore_error}")
     
     finally:
         # Disconnect from database
