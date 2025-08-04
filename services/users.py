@@ -1,6 +1,6 @@
 from orms.users import Users
 from mongoengine import DoesNotExist
-from typing import Optional, List
+from typing import Optional, List, cast
 import logging
 
 from utils.user import check_admin
@@ -36,10 +36,7 @@ class UserService:
     @staticmethod
     def get_user_by_telegram_id(telegram_id: str) -> Optional[Users]:
         try:
-            user = Users.objects.get(telegram_id=telegram_id)
-            if isinstance(user, tuple):
-                logger.error(f"Multiple users found with telegram_id: {telegram_id}")
-                return None
+            user = cast(Users, Users.objects.get(telegram_id=telegram_id))
             logger.debug(f"Found user with telegram_id: {telegram_id}")
             return user
 
@@ -53,11 +50,7 @@ class UserService:
     @staticmethod
     def update_user_by_telegram_id(telegram_id: str, **kwargs) -> Optional[Users]:
         try:
-            user = Users.objects.get(telegram_id=telegram_id)
-
-            if isinstance(user, tuple):
-                logger.error(f"Multiple users found with telegram_id: {telegram_id}")
-                return None
+            user = cast(Users, Users.objects.get(telegram_id=telegram_id))
 
             if 'telegram_user_name' in kwargs:
                 user.telegram_user_name = kwargs['telegram_user_name']
@@ -78,10 +71,7 @@ class UserService:
     @staticmethod
     def delete_user_by_telegram_id(telegram_id: str) -> bool:
         try:
-            user = Users.objects.get(telegram_id=telegram_id)
-            if isinstance(user, tuple):
-                logger.error(f"Multiple users found with telegram_id: {telegram_id}")
-                return False
+            user = cast(Users, Users.objects.get(telegram_id=telegram_id))
             user.delete()
             logger.info(f"Deleted user with telegram_id: {telegram_id}")
             return True
