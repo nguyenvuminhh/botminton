@@ -2,6 +2,9 @@ from enum import StrEnum
 
 class Commands(StrEnum):
     START = "start"
+    PRINT_GROUP_CHAT_ID = "print_group_chat_id"
+    PRINT_USER_ID = "print_user_id"
+    TEST_ADMIN = "test_admin"
 
 class PollOptions(StrEnum):
     YES = "Có"
