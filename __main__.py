@@ -1,6 +1,7 @@
 from commands.start import start
 from config import BOT_TOKEN
 from constants import Commands
+from orms.metadata import Metadata
 from utils.database import db_manager
 from telegram.ext import ApplicationBuilder, CommandHandler
 import logging
@@ -16,6 +17,7 @@ def run():
     # Initialize database connection
     try:
         db_manager.connect()
+        Metadata.create()
         logger.info("Database connection established")
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
