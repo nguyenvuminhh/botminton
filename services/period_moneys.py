@@ -1,5 +1,4 @@
-from mongoengine import DoesNotExist, ValidationError, MultipleObjectsReturned, NotUniqueError
-from orms.periods import Periods
+from mongoengine import DoesNotExist, ValidationError
 from orms.period_moneys import PeriodMoneys
 from orms.users import Users
 from services.periods import PeriodService
@@ -334,6 +333,114 @@ class PeriodMoneyService:
             logger.error(f"Failed to calculate total money for period {period_start_date}: {e}")
             return 0.0
         
+    @staticmethod
+    def mark_as_paid_by_telegram_id(period_start_date: str, user_telegram_id: str) -> Optional[PeriodMoneys]:
+        """
+        Mark period money as paid by period start date and user telegram ID
+        
+        Args:
+            period_start_date (str): Period start date in ISO format
+            user_telegram_id (str): User telegram ID
+            
+        Returns:
+            PeriodMoneys: Updated period money object or None if failed
+        """
+        try:
+            period_money = PeriodMoneyService.get_period_money_by_date(period_start_date, user_telegram_id)
+            if not period_money:
+                logger.warning(f"Cannot mark as paid - period money for user {user_telegram_id} in period {period_start_date} not found")
+                return None
+            
+            period_money.has_paid = True
+            period_money.save()
+            
+            logger.info(f"Marked period money as paid for user {user_telegram_id} in period {period_start_date}")
+            return period_money
+            
+        except Exception as e:
+            logger.error(f"Failed to mark period money as paid for user {user_telegram_id} in period {period_start_date}: {e}")
+            return None
+
+    @staticmethod
+    def mark_as_unpaid_by_telegram_id(period_start_date: str, user_telegram_id: str) -> Optional[PeriodMoneys]:
+        """
+        Mark period money as unpaid by period start date and user telegram ID
+        
+        Args:
+            period_start_date (str): Period start date in ISO format
+            user_telegram_id (str): User telegram ID
+            
+        Returns:
+            PeriodMoneys: Updated period money object or None if failed
+        """
+        try:
+            period_money = PeriodMoneyService.get_period_money_by_date(period_start_date, user_telegram_id)
+            if not period_money:
+                logger.warning(f"Cannot mark as unpaid - period money for user {user_telegram_id} in period {period_start_date} not found")
+                return None
+            
+            period_money.has_paid = False
+            period_money.save()
+            
+            logger.info(f"Marked period money as unpaid for user {user_telegram_id} in period {period_start_date}")
+            return period_money
+            
+        except Exception as e:
+            logger.error(f"Failed to mark period money as unpaid for user {user_telegram_id} in period {period_start_date}: {e}")
+            return None
+
+    @staticmethod
+    def list_paid_by_period_start_date(period_start_date: str) -> List[PeriodMoneys]:
+        """
+        List all paid period moneys for a specific period
+        
+        Args:
+            period_start_date (str): Period start date in ISO format
+            
+        Returns:
+            List[PeriodMoneys]: List of paid period money objects
+        """
+        try:
+            period = PeriodService.get_period_by_start_date(period_start_date)
+            if not period:
+                logger.warning(f"Period with start_date {period_start_date} not found")
+                return []
+            
+            paid_period_moneys = list(PeriodMoneys.objects.filter(period=period, has_paid=True))  # type: ignore
+            
+            logger.debug(f"Found {len(paid_period_moneys)} paid period moneys for period {period_start_date}")
+            return paid_period_moneys
+            
+        except Exception as e:
+            logger.error(f"Failed to list paid period moneys for period {period_start_date}: {e}")
+            return []
+
+    @staticmethod
+    def list_unpaid_by_period_start_date(period_start_date: str) -> List[PeriodMoneys]:
+        """
+        List all unpaid period moneys for a specific period
+        
+        Args:
+            period_start_date (str): Period start date in ISO format
+            
+        Returns:
+            List[PeriodMoneys]: List of unpaid period money objects
+        """
+        try:
+            period = PeriodService.get_period_by_start_date(period_start_date)
+            if not period:
+                logger.warning(f"Period with start_date {period_start_date} not found")
+                return []
+            
+            unpaid_period_moneys = list(PeriodMoneys.objects.filter(period=period, has_paid=False))  # type: ignore
+            
+            logger.debug(f"Found {len(unpaid_period_moneys)} unpaid period moneys for period {period_start_date}")
+            return unpaid_period_moneys
+            
+        except Exception as e:
+            logger.error(f"Failed to list unpaid period moneys for period {period_start_date}: {e}")
+            return []
+
 
 # Convenience functions for PeriodMoneys
 def create_period_money(period_start_date: str, user_telegram_id: str, amount: float) -> Optional[PeriodMoneys]:
@@ -375,3 +482,19 @@ def list_period_moneys_by_user(user_telegram_id: str) -> List[PeriodMoneys]:
 def get_total_money_for_period(period_start_date: str) -> float:
     """Get total money for period - convenience function"""
     return PeriodMoneyService.get_total_money_for_period(period_start_date)
+
+def mark_as_paid_by_telegram_id(period_start_date: str, user_telegram_id: str) -> Optional[PeriodMoneys]:
+    """Mark period money as paid by telegram ID - convenience function"""
+    return PeriodMoneyService.mark_as_paid_by_telegram_id(period_start_date, user_telegram_id)
+
+def mark_as_unpaid_by_telegram_id(period_start_date: str, user_telegram_id: str) -> Optional[PeriodMoneys]:
+    """Mark period money as unpaid by telegram ID - convenience function"""
+    return PeriodMoneyService.mark_as_unpaid_by_telegram_id(period_start_date, user_telegram_id)
+
+def list_paid_by_period_start_date(period_start_date: str) -> List[PeriodMoneys]:
+    """List paid period moneys for a period - convenience function"""
+    return PeriodMoneyService.list_paid_by_period_start_date(period_start_date)
+
+def list_unpaid_by_period_start_date(period_start_date: str) -> List[PeriodMoneys]:
+    """List unpaid period moneys for a period - convenience function"""
+    return PeriodMoneyService.list_unpaid_by_period_start_date(period_start_date)

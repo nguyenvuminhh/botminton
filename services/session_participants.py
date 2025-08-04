@@ -1,7 +1,7 @@
 from orms.session_participants import SessionParticipants
 from orms.sessions import Sessions
 from orms.users import Users
-from mongoengine import DoesNotExist, ValidationError, MultipleObjectsReturned, NotUniqueError
+from mongoengine import DoesNotExist, ValidationError
 from typing import Optional, List, cast
 from datetime import date as dt_date
 import logging
@@ -12,7 +12,7 @@ class SessionParticipantService:
     """Service class for session participant CRUD operations"""
 
     @staticmethod
-    def create_participant(user_telegram_id: str, session_date: str, additional_participants: int = 0, has_paid: bool = False) -> Optional[SessionParticipants]:
+    def create_participant(user_telegram_id: str, session_date: str, additional_participants: int = 0) -> Optional[SessionParticipants]:
         """Create a new session participant"""
         try:
             # Get user by telegram_id
@@ -32,7 +32,6 @@ class SessionParticipantService:
                 user=user,
                 session=session,
                 additional_participants=additional_participants,
-                has_paid=has_paid
             )
             participant.save()
             logger.info(f"Created participant for user {user_telegram_id} in session {session_date}")
@@ -221,64 +220,6 @@ class SessionParticipantService:
             return 0
 
     @staticmethod
-    def get_paid_participants_by_session(session_date: str) -> List[SessionParticipants]:
-        """Get all participants who have paid for a session"""
-        try:
-            session_date_obj = dt_date.fromisoformat(session_date)
-            session = cast(Sessions, Sessions.objects.get(date=session_date_obj))
-            
-            paid_participants = list(SessionParticipants.objects.filter(session=session, has_paid=True))  # type: ignore
-            logger.debug(f"Found {len(paid_participants)} paid participants for session {session_date}")
-            return paid_participants
-
-        except DoesNotExist:
-            logger.error(f"Session with date {session_date} not found")
-            return []
-        except Exception as e:
-            logger.error(f"Failed to get paid participants for session {session_date}: {e}")
-            return []
-
-    @staticmethod
-    def get_unpaid_participants_by_session(session_date: str) -> List[SessionParticipants]:
-        """Get all participants who haven't paid for a session"""
-        try:
-            session_date_obj = dt_date.fromisoformat(session_date)
-            session = cast(Sessions, Sessions.objects.get(date=session_date_obj))
-            
-            unpaid_participants = list(SessionParticipants.objects.filter(session=session, has_paid=False))  # type: ignore
-            logger.debug(f"Found {len(unpaid_participants)} unpaid participants for session {session_date}")
-            return unpaid_participants
-
-        except DoesNotExist:
-            logger.error(f"Session with date {session_date} not found")
-            return []
-        except Exception as e:
-            logger.error(f"Failed to get unpaid participants for session {session_date}: {e}")
-            return []
-
-    @staticmethod
-    def mark_participant_as_paid(user_telegram_id: str, session_date: str) -> Optional[SessionParticipants]:
-        """Mark a participant as paid"""
-        try:
-            return SessionParticipantService.update_participant_by_user_and_session(
-                user_telegram_id, session_date, has_paid=True
-            )
-        except Exception as e:
-            logger.error(f"Failed to mark participant as paid: {e}")
-            return None
-
-    @staticmethod
-    def mark_participant_as_unpaid(user_telegram_id: str, session_date: str) -> Optional[SessionParticipants]:
-        """Mark a participant as unpaid"""
-        try:
-            return SessionParticipantService.update_participant_by_user_and_session(
-                user_telegram_id, session_date, has_paid=False
-            )
-        except Exception as e:
-            logger.error(f"Failed to mark participant as unpaid: {e}")
-            return None
-
-    @staticmethod
     def update_additional_participants(user_telegram_id: str, session_date: str, additional_count: int) -> Optional[SessionParticipants]:
         """Update the number of additional participants for a user"""
         try:
@@ -293,9 +234,9 @@ class SessionParticipantService:
 # ✅ Convenience functions
 # ------------------------
 
-def create_participant(user_telegram_id: str, session_date: str, additional_participants: int = 0, has_paid: bool = False) -> Optional[SessionParticipants]:
+def create_participant(user_telegram_id: str, session_date: str, additional_participants: int = 0) -> Optional[SessionParticipants]:
     """Create a new session participant"""
-    return SessionParticipantService.create_participant(user_telegram_id, session_date, additional_participants, has_paid)
+    return SessionParticipantService.create_participant(user_telegram_id, session_date, additional_participants)
 
 def get_participant(participant_id: str) -> Optional[SessionParticipants]:
     """Get a session participant by ID"""
@@ -337,21 +278,6 @@ def get_session_participant_count(session_date: str) -> int:
     """Get total number of participants (including additional) for a session"""
     return SessionParticipantService.get_participants_count_by_session(session_date)
 
-def get_paid_participants(session_date: str) -> List[SessionParticipants]:
-    """Get all participants who have paid for a session"""
-    return SessionParticipantService.get_paid_participants_by_session(session_date)
-
-def get_unpaid_participants(session_date: str) -> List[SessionParticipants]:
-    """Get all participants who haven't paid for a session"""
-    return SessionParticipantService.get_unpaid_participants_by_session(session_date)
-
-def mark_as_paid(user_telegram_id: str, session_date: str) -> Optional[SessionParticipants]:
-    """Mark a participant as paid"""
-    return SessionParticipantService.mark_participant_as_paid(user_telegram_id, session_date)
-
-def mark_as_unpaid(user_telegram_id: str, session_date: str) -> Optional[SessionParticipants]:
-    """Mark a participant as unpaid"""
-    return SessionParticipantService.mark_participant_as_unpaid(user_telegram_id, session_date)
 
 def update_additional_participants(user_telegram_id: str, session_date: str, additional_count: int) -> Optional[SessionParticipants]:
     """Update the number of additional participants for a user"""

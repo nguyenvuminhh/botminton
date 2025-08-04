@@ -51,11 +51,12 @@ class UserService:
     def update_user_by_telegram_id(telegram_id: str, **kwargs) -> Optional[Users]:
         try:
             user = cast(Users, Users.objects.get(telegram_id=telegram_id))
+            is_admin = check_admin(telegram_id)
 
             if 'telegram_user_name' in kwargs:
                 user.telegram_user_name = kwargs['telegram_user_name']
-            if 'is_admin' in kwargs:
-                user.is_admin = kwargs['is_admin']
+
+            user.is_admin = is_admin
 
             user.save()
             logger.info(f"Updated user with telegram_id: {telegram_id}")

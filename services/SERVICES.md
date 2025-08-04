@@ -20,14 +20,13 @@ Manages user data and operations.
 
 ### Class Methods
 
-#### `create_user(telegram_id: str, telegram_user_name: Optional[str] = None, is_admin: bool = False) -> Optional[Users]`
+#### `create_user(telegram_id: str, telegram_user_name: Optional[str] = None) -> Optional[Users]`
 
 Creates a new user or returns existing user if telegram_id already exists.
 
 **Parameters:**
 - `telegram_id` (str): Unique Telegram user ID
 - `telegram_user_name` (Optional[str]): Telegram username (default: None)
-- `is_admin` (bool): Whether user has admin privileges (default: False)
 
 **Returns:** `Users` object or `None` if creation failed
 
@@ -46,7 +45,7 @@ Updates user information.
 
 **Parameters:**
 - `telegram_id` (str): Telegram user ID
-- `**kwargs`: Fields to update (`telegram_user_name`, `is_admin`)
+- `**kwargs`: Fields to update (`telegram_user_name`)
 
 **Returns:** Updated `Users` object or `None` if failed
 
@@ -75,7 +74,7 @@ Lists all users with pagination.
 from services.users import create_user, get_user, update_user, delete_user, list_all_users
 
 # Create user
-user = create_user("123456", "username", is_admin=True)
+user = create_user("123456", "username")
 
 # Get user
 user = get_user("123456")
@@ -419,7 +418,7 @@ Manages session participation, tracking users in sessions with payment status an
 
 ### Class Methods
 
-#### `create_participant(user_telegram_id: str, session_date: str, additional_participants: int = 0, has_paid: bool = False) -> Optional[SessionParticipants]`
+#### `create_participant(user_telegram_id: str, session_date: str, additional_participants: int = 0) -> Optional[SessionParticipants]`
 
 Creates a new session participant or returns existing participant.
 
@@ -427,7 +426,6 @@ Creates a new session participant or returns existing participant.
 - `user_telegram_id` (str): User telegram ID
 - `session_date` (str): Session date in ISO format
 - `additional_participants` (int): Number of additional participants brought by user (default: 0)
-- `has_paid` (bool): Payment status (default: False)
 
 **Returns:** `SessionParticipants` object or `None` if creation failed
 
@@ -456,7 +454,7 @@ Updates participant information by ID.
 
 **Parameters:**
 - `participant_id` (str): Participant record ID
-- `**kwargs`: Fields to update (`additional_participants`, `has_paid`)
+- `**kwargs`: Fields to update (`additional_participants`)
 
 **Returns:** Updated `SessionParticipants` object or `None` if failed
 
@@ -467,7 +465,7 @@ Updates participant information by user and session.
 **Parameters:**
 - `user_telegram_id` (str): User telegram ID
 - `session_date` (str): Session date in ISO format
-- `**kwargs`: Fields to update (`additional_participants`, `has_paid`)
+- `**kwargs`: Fields to update (`additional_participants`)
 
 **Returns:** Updated `SessionParticipants` object or `None` if failed
 
@@ -527,44 +525,6 @@ Gets total number of participants (including additional) for a session.
 
 **Returns:** Total participant count as integer
 
-#### `get_paid_participants_by_session(session_date: str) -> List[SessionParticipants]`
-
-Gets all participants who have paid for a session.
-
-**Parameters:**
-- `session_date` (str): Session date in ISO format
-
-**Returns:** List of paid `SessionParticipants` objects
-
-#### `get_unpaid_participants_by_session(session_date: str) -> List[SessionParticipants]`
-
-Gets all participants who haven't paid for a session.
-
-**Parameters:**
-- `session_date` (str): Session date in ISO format
-
-**Returns:** List of unpaid `SessionParticipants` objects
-
-#### `mark_participant_as_paid(user_telegram_id: str, session_date: str) -> Optional[SessionParticipants]`
-
-Marks a participant as paid.
-
-**Parameters:**
-- `user_telegram_id` (str): User telegram ID
-- `session_date` (str): Session date in ISO format
-
-**Returns:** Updated `SessionParticipants` object or `None` if failed
-
-#### `mark_participant_as_unpaid(user_telegram_id: str, session_date: str) -> Optional[SessionParticipants]`
-
-Marks a participant as unpaid.
-
-**Parameters:**
-- `user_telegram_id` (str): User telegram ID
-- `session_date` (str): Session date in ISO format
-
-**Returns:** Updated `SessionParticipants` object or `None` if failed
-
 #### `update_additional_participants(user_telegram_id: str, session_date: str, additional_count: int) -> Optional[SessionParticipants]`
 
 Updates the number of additional participants for a user.
@@ -583,19 +543,18 @@ from services.session_participants import (
     create_participant, get_participant, get_participant_by_user_and_session,
     update_participant, delete_participant, list_session_participants,
     list_user_participations, get_session_participant_count,
-    get_paid_participants, get_unpaid_participants, mark_as_paid,
-    mark_as_unpaid, update_additional_participants
+    update_additional_participants
 )
 
 # Create participant
-participant = create_participant("123456", "2025-08-04", additional_participants=2, has_paid=True)
+participant = create_participant("123456", "2025-08-04", additional_participants=2)
 
 # Get participant
 participant = get_participant("participant_id")
 participant = get_participant_by_user_and_session("123456", "2025-08-04")
 
 # Update participant
-updated = update_participant("participant_id", has_paid=True)
+updated = update_participant("participant_id")
 
 # Delete participant
 success = delete_participant("participant_id")
@@ -606,12 +565,8 @@ user_participations = list_user_participations("123456")
 
 # Get counts and payment status
 total_count = get_session_participant_count("2025-08-04")
-paid = get_paid_participants("2025-08-04")
-unpaid = get_unpaid_participants("2025-08-04")
 
 # Payment operations
-mark_as_paid("123456", "2025-08-04")
-mark_as_unpaid("123456", "2025-08-04")
 update_additional_participants("123456", "2025-08-04", 3)
 ```
 
@@ -625,12 +580,12 @@ update_additional_participants("123456", "2025-08-04", 3)
 from services.users import create_user
 from services.periods import create_period
 from services.sessions import create_session
-from services.session_participants import create_participant, mark_as_paid
+from services.session_participants import create_participant
 from services.period_moneys import create_period_money
 
 # 1. Create users
-user1 = create_user("123456", "john_doe", is_admin=False)
-user2 = create_user("789012", "jane_smith", is_admin=True)
+user1 = create_user("123456", "john_doe")
+user2 = create_user("789012", "jane_smith")
 
 # 2. Create a period
 period = create_period("2025-08-01", "2025-08-31", 1000)
@@ -639,11 +594,9 @@ period = create_period("2025-08-01", "2025-08-31", 1000)
 session = create_session("2025-08-04", "2025-08-01", 25.0, "poll_123")
 
 # 4. Add participants to session
-participant1 = create_participant("123456", "2025-08-04", additional_participants=1, has_paid=False)
-participant2 = create_participant("789012", "2025-08-04", additional_participants=0, has_paid=True)
+participant1 = create_participant("123456", "2025-08-04", additional_participants=1)
+participant2 = create_participant("789012", "2025-08-04", additional_participants=0)
 
-# 5. Mark participant as paid
-mark_as_paid("123456", "2025-08-04")
 
 # 6. Record period money
 period_money1 = create_period_money("2025-08-01", "123456", 50.0)
@@ -655,7 +608,7 @@ period_money2 = create_period_money("2025-08-01", "789012", 25.0)
 ```python
 from services.users import list_all_users
 from services.sessions import list_sessions_by_period, get_current_session
-from services.session_participants import get_session_participant_count, get_paid_participants
+from services.session_participants import get_session_participant_count
 from services.period_moneys import get_total_money_for_period
 
 # Get all users
@@ -669,7 +622,6 @@ current_session = get_current_session()
 
 # Get participant statistics
 total_participants = get_session_participant_count("2025-08-04")
-paid_participants = get_paid_participants("2025-08-04")
 
 # Get financial information
 total_money = get_total_money_for_period("2025-08-01")

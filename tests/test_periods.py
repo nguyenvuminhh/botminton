@@ -7,11 +7,9 @@ from services.periods import (
     create_period, get_period, update_period, delete_period, list_all_periods, get_current_period,
 )
 from services.period_moneys import (
-    PeriodMoneyService,
     create_period_money, get_period_money, get_period_money_by_id, 
     update_period_money, update_period_money_by_id,
-    delete_period_money, delete_period_money_by_id,
-    list_period_moneys_by_period, list_period_moneys_by_user, get_total_money_for_period
+    delete_period_money, list_period_moneys_by_period, list_period_moneys_by_user, get_total_money_for_period
 )
 from services.users import create_user, delete_user
 from utils.database import db_manager
@@ -34,7 +32,6 @@ def setup_test_user():
         test_user = create_user(
             telegram_id=user_telegram_id,
             telegram_user_name="test_period_user",
-            is_admin=False
         )
         return user_telegram_id if test_user else None
         
@@ -54,7 +51,6 @@ def setup_second_test_user():
         test_user = create_user(
             telegram_id=user_telegram_id,
             telegram_user_name="test_period_user_2",
-            is_admin=False
         )
         return user_telegram_id if test_user else None
         
@@ -176,7 +172,7 @@ def test_periods_crud():
         )
         
         if duplicate_period:
-            print(f"ℹ️  Duplicate creation handled - existing period returned")
+            print("ℹ️  Duplicate creation handled - existing period returned")
             print(f"   Original values preserved: ${duplicate_period.total_money}")
             # Assert duplicate returns the same period with original values
             assert duplicate_period.start_date == dt_date.fromisoformat(test_date_1), f"Expected start_date {test_date_1}, got {duplicate_period.start_date}"
@@ -719,6 +715,7 @@ def test_periods_edge_cases():
     except Exception as e:
         logger.error(f"Edge cases test failed: {e}")
         print(f"❌ Edge cases test failed: {e}")
+
 
 def run_all_period_tests():
     """Run all period-related tests"""
