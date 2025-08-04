@@ -3,14 +3,18 @@ from mongoengine import DoesNotExist
 from typing import Optional, List
 import logging
 
+from utils.user import check_admin
+
 logger = logging.getLogger(__name__)
 
 class UserService:
     """Service class for user CRUD operations"""
 
     @staticmethod
-    def create_user(telegram_id: str, telegram_user_name: Optional[str] = None, is_admin: bool = False) -> Optional[Users]:
+    def create_user(telegram_id: str, telegram_user_name: Optional[str] = None) -> Optional[Users]:
         try:
+            is_admin = check_admin(telegram_id)
+
             existing_user = UserService.get_user_by_telegram_id(telegram_id)
             if existing_user:
                 logger.warning(f"User with telegram_id {telegram_id} already exists")
@@ -104,8 +108,8 @@ class UserService:
 # ✅ Convenience functions
 # ------------------------
 
-def create_user(telegram_id: str, telegram_user_name: Optional[str] = None, is_admin: bool = False) -> Optional[Users]:
-    return UserService.create_user(telegram_id, telegram_user_name, is_admin)
+def create_user(telegram_id: str, telegram_user_name: Optional[str] = None) -> Optional[Users]:
+    return UserService.create_user(telegram_id, telegram_user_name)
 
 def get_user(telegram_id: str) -> Optional[Users]:
     return UserService.get_user_by_telegram_id(telegram_id)
