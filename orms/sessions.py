@@ -1,12 +1,16 @@
 from mongoengine import (
-    Document, StringField, FloatField, ReferenceField, CASCADE
+    Document, StringField, FloatField, ReferenceField, CASCADE, DateField, QuerySet
 )
 
 from orms.periods import Periods
 
 class Sessions(Document):
-    date = StringField(required=True)  # or DateField if you want stricter typing
+    date = DateField(required=True, unique=True)
     period = ReferenceField(Periods, required=True, reverse_delete_rule=CASCADE)
     courts_price = FloatField(required=True)
+    telegram_poll_message_id = StringField(required=True)
 
     meta = {"collection": "sessions"}
+
+    objects: QuerySet  # type: ignore[attr-defined]
+
