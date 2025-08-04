@@ -8,9 +8,6 @@ class Metadata(Document):
     default_end_time = StringField(default="22:00")
     default_day_of_the_week_index = IntField(default=5)
 
-    common_group_chat_id = StringField(default="0")
-    admin_group_chat_id = StringField(default="0")
-
     meta = {
         "collection": "metadata",
         "strict": False
