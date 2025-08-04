@@ -28,7 +28,11 @@ class MetadataService:
         common_group_chat_id: Optional[str] = None, 
         admin_group_chat_id: Optional[str] = None
     ) -> Optional[Metadata]:
-        metadata = Metadata.get()
+        try:
+            metadata = Metadata.get()
+        except Exception as e:
+            logger.error(f"Error getting metadata for update: {e}")
+            return None
 
         update_fields = {
             "default_location": default_location,
