@@ -1,5 +1,5 @@
 from mongoengine import (
-    Document, IntField, BooleanField, ReferenceField, CASCADE
+    Document, IntField, BooleanField, ReferenceField, CASCADE, QuerySet
 )
 
 from orms.sessions import Sessions
@@ -12,3 +12,5 @@ class SessionParticipants(Document):
     has_paid = BooleanField(default=False)
 
     meta = {"collection": "session_participants"}
+
+    objects: QuerySet  # type: ignore[attr-defined]
