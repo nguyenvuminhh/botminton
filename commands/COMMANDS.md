@@ -23,7 +23,7 @@
 |---|---|---|
 | `/end_current_and_start_new_period` | `[YYYY-MM-DD]` | Post period summary to group, close current period, start a new one. Defaults to today. |
 | `/period_summary` | — | Calculate and post the money summary for the current period |
-| `/add_shuttlecock` | `<YYYY-MM-DD> <price> [tubes]` | Log a shuttlecock batch (e.g. `/add_shuttlecock 2026-02-23 11.4 12`) |
+| `/add_shuttlecock` | `<price> [tubes]` | Log a shuttlecock batch to the current period (e.g. `/add_shuttlecock 11.4 12`) |
 
 ### Venue management (admin)
 | Command | Args | Description |

@@ -101,33 +101,33 @@ async def period_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @check_admin_middleware
 async def add_shuttlecock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    Usage: /add_shuttlecock <YYYY-MM-DD> <price> [tube_count]
-    Example: /add_shuttlecock 2026-02-23 11.4 12
+    Usage: /add_shuttlecock <price> [tube_count]
+    Example: /add_shuttlecock 11.4 12
     """
     if not update.effective_chat:
         return
 
     chat_id = update.effective_chat.id
 
-    if not context.args or len(context.args) < 2:  # type: ignore
+    if not context.args:  # type: ignore
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Usage: /add_shuttlecock <YYYY-MM-DD> <price> [tube_count]"
+            text="Usage: /add_shuttlecock <price> [tube_count]"
         )
         return
 
-    purchase_date_str = context.args[0]  # type: ignore
     try:
-        dt_date.fromisoformat(purchase_date_str)
-        total_price = float(context.args[1])  # type: ignore
-    except (ValueError, IndexError):
-        await context.bot.send_message(chat_id=chat_id, text="❌ Invalid arguments. Date: YYYY-MM-DD, price: number.")
+        total_price = float(context.args[0])  # type: ignore
+    except ValueError:
+        await context.bot.send_message(chat_id=chat_id, text="❌ Invalid price.")
         return
 
+    purchase_date_str = dt_date.today().isoformat()
+
     tube_count = None
-    if len(context.args) >= 3:  # type: ignore
+    if len(context.args) >= 2:  # type: ignore
         try:
-            tube_count = int(context.args[2])  # type: ignore
+            tube_count = int(context.args[1])  # type: ignore
         except ValueError:
             await context.bot.send_message(chat_id=chat_id, text="❌ tube_count must be an integer.")
             return
