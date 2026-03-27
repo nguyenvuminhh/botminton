@@ -5,7 +5,7 @@
 - Python 3.11+
 - A MongoDB database (MongoDB Atlas free tier works)
 - A Telegram bot token (from [@BotFather](https://t.me/BotFather))
-- Two Telegram groups: one for the main players, one for admin use
+- One Telegram group for the players
 
 ---
 
@@ -39,6 +39,11 @@ MONGODB_URI=            # e.g. mongodb+srv://user:pass@cluster.mongodb.net/
 DATABASE_NAME=          # e.g. botminton
 COMMON_GROUP_CHAT_ID=   # The group chat ID (negative number)
 ADMIN_USER_ID=          # Your Telegram user ID
+
+# Webhook — leave blank to run locally with polling
+WEBHOOK_URL=            # Public HTTPS URL of your deployment, e.g. https://mybot.up.railway.app
+WEBHOOK_SECRET=         # Optional random string for request verification
+WEBHOOK_PORT=8443       # Default port; your platform must forward traffic here
 ```
 
 ---
@@ -49,6 +54,10 @@ ADMIN_USER_ID=          # Your Telegram user ID
 pip install -r requirements.txt
 python -m botminton
 ```
+
+**Local development** — leave `WEBHOOK_URL` blank. The bot uses polling mode; no public URL needed.
+
+**Production (webhook mode)** — set `WEBHOOK_URL` to your deployment's public HTTPS URL. The bot registers the webhook with Telegram automatically on startup and listens for incoming POST requests.
 
 ---
 

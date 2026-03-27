@@ -7,7 +7,7 @@ from commands.session_mgmt import (
     add_player, add_plus_one, remove_player, remove_plus_one, set_slots, set_venue
 )
 from commands.start import test_admin
-from config import BOT_TOKEN
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_SECRET, WEBHOOK_PORT
 from constants import Commands
 from schemas.metadata import Metadata
 from utils.database import db_manager
@@ -80,7 +80,18 @@ def run():
     app.add_handler(MessageHandler(GROUP & filters.ALL, upsert_on_message))
 
     try:
-        app.run_polling()
+        if WEBHOOK_URL:
+            logger.info(f"Starting in webhook mode on port {WEBHOOK_PORT}")
+            app.run_webhook(
+                listen="0.0.0.0",
+                port=WEBHOOK_PORT,
+                url_path=BOT_TOKEN,
+                webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
+                secret_token=WEBHOOK_SECRET,
+            )
+        else:
+            logger.info("No WEBHOOK_URL set — starting in polling mode")
+            app.run_polling()
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     finally:
