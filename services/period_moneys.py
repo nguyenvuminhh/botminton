@@ -1,6 +1,6 @@
 from mongoengine import DoesNotExist, ValidationError
-from orms.period_moneys import PeriodMoneys
-from orms.users import Users
+from schemas.period_moneys import PeriodMoneys
+from schemas.users import Users
 from services.periods import PeriodService
 from typing import Optional, List, cast
 import logging

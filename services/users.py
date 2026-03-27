@@ -1,4 +1,4 @@
-from orms.users import Users
+from schemas.users import Users
 from mongoengine import DoesNotExist
 from typing import Optional, List, cast
 import logging
@@ -95,6 +95,19 @@ class UserService:
             logger.error(f"Failed to list all users: {e}")
             return []
 
+    @staticmethod
+    def get_user_by_username(username: str) -> Optional[Users]:
+        """Look up a user by telegram_user_name (case-insensitive, strips leading @)."""
+        try:
+            clean = username.lstrip("@")
+            return cast(Users, Users.objects.get(telegram_user_name__iexact=clean))
+        except DoesNotExist:
+            logger.info(f"User with username '{username}' not found")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user by username '{username}': {e}")
+            return None
+
 # ------------------------
 # ✅ Convenience functions
 # ------------------------
@@ -104,6 +117,9 @@ def create_user(telegram_id: str, telegram_user_name: Optional[str] = None) -> O
 
 def get_user(telegram_id: str) -> Optional[Users]:
     return UserService.get_user_by_telegram_id(telegram_id)
+
+def get_user_by_username(username: str) -> Optional[Users]:
+    return UserService.get_user_by_username(username)
 
 def update_user(telegram_id: str, **kwargs) -> Optional[Users]:
     return UserService.update_user_by_telegram_id(telegram_id, **kwargs)

@@ -48,7 +48,7 @@ def test_basic_functionality():
         
         # 3. Test Sessions
         print("\n3️⃣ Testing Sessions...")
-        session = create_session(test_date, test_date, 25.0, "test_poll_123")
+        session = create_session(date=test_date, period_id=test_date, slots=6.0)
         if session:
             print(f"✅ Created session: {session.date}")
             

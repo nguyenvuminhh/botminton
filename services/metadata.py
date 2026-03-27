@@ -1,4 +1,4 @@
-from orms.metadata import Metadata
+from schemas.metadata import Metadata
 from typing import Optional
 import logging
 

@@ -1,6 +1,6 @@
-from orms.session_participants import SessionParticipants
-from orms.sessions import Sessions
-from orms.users import Users
+from schemas.session_participants import SessionParticipants
+from schemas.sessions import Sessions
+from schemas.users import Users
 from mongoengine import DoesNotExist, ValidationError
 from typing import Optional, List, cast
 from datetime import date as dt_date

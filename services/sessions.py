@@ -1,32 +1,50 @@
 from datetime import date as dt_date
 from mongoengine import DoesNotExist, ValidationError, MultipleObjectsReturned
-from orms.sessions import Sessions
-from orms.periods import Periods
+from schemas.sessions import Sessions
+from schemas.periods import Periods
+from schemas.venues import Venues
 from typing import Optional, List, cast
 import logging
 
 logger = logging.getLogger(__name__)
 
+
 class SessionService:
     """Service class for session CRUD operations"""
 
     @staticmethod
-    def create_session(date: str, period_id: str, courts_price: float, telegram_poll_message_id: str) -> Optional[Sessions]:
+    def create_session(
+        date: str,
+        period_id: str,
+        venue_id: Optional[str] = None,
+        slots: float = 0.0,
+        telegram_poll_message_id: Optional[str] = None,
+    ) -> Optional[Sessions]:
         try:
-            # Try to get period by start_date first, then by ID
             try:
                 period = Periods.objects.get(start_date=dt_date.fromisoformat(period_id))  # type: ignore
-            except:
+            except Exception:
                 period = Periods.objects.get(id=period_id)  # type: ignore
-            
+
+            venue = None
+            if venue_id:
+                try:
+                    venue = Venues.objects.get(name=venue_id)  # type: ignore
+                except DoesNotExist:
+                    try:
+                        venue = Venues.objects.get(id=venue_id)  # type: ignore
+                    except DoesNotExist:
+                        logger.warning(f"Venue '{venue_id}' not found; session created without venue")
+
             session = Sessions(
                 date=dt_date.fromisoformat(date),
                 period=period,
-                courts_price=courts_price,
-                telegram_poll_message_id=telegram_poll_message_id
+                venue=venue,
+                slots=slots,
+                telegram_poll_message_id=telegram_poll_message_id,
             )
             session.save()
-            logger.info(f"Created session on {date} with period {period_id}")
+            logger.info(f"Created session on {date}")
             return session
         except DoesNotExist:
             logger.error(f"Period with id/start_date {period_id} does not exist")
@@ -55,17 +73,31 @@ class SessionService:
 
             if 'period' in kwargs:
                 try:
-                    # Try to get period by start_date first, then by ID
                     try:
                         session.period = Periods.objects.get(start_date=dt_date.fromisoformat(kwargs['period']))  # type: ignore
-                    except:
+                    except Exception:
                         session.period = Periods.objects.get(id=kwargs['period'])  # type: ignore
                 except DoesNotExist:
-                    logger.error(f"Period with id/start_date {kwargs['period']} does not exist")
+                    logger.error(f"Period {kwargs['period']} does not exist")
                     return None
 
-            if 'courts_price' in kwargs:
-                session.courts_price = kwargs['courts_price']
+            if 'venue' in kwargs:
+                venue_id = kwargs['venue']
+                if venue_id is None:
+                    session.venue = None  # type: ignore
+                else:
+                    try:
+                        session.venue = Venues.objects.get(name=venue_id)  # type: ignore
+                    except DoesNotExist:
+                        try:
+                            session.venue = Venues.objects.get(id=venue_id)  # type: ignore
+                        except DoesNotExist:
+                            logger.error(f"Venue '{venue_id}' not found")
+                            return None
+
+            for field in ('slots', 'is_poll_open', 'telegram_poll_message_id'):
+                if field in kwargs:
+                    setattr(session, field, kwargs[field])
 
             session.save()
             logger.info(f"Updated session on {date}")
@@ -97,10 +129,9 @@ class SessionService:
     @staticmethod
     def list_sessions_by_period_id(period_id: str) -> List[Sessions]:
         try:
-            # Try to get period by start_date first, then by ID
             try:
                 period = Periods.objects.get(start_date=dt_date.fromisoformat(period_id))  # type: ignore
-            except:
+            except Exception:
                 period = Periods.objects.get(id=period_id)  # type: ignore
             return list(Sessions.objects(period=period))  # type: ignore
         except DoesNotExist:
@@ -115,36 +146,46 @@ class SessionService:
             today = dt_date.today()
             session = cast(Sessions, Sessions.objects(date=today).first())
             if session:
-                logger.debug(f"Found current session on {today}")
                 return session
-            else:
-                logger.info(f"No current session found for {today}")
+            logger.info(f"No current session found for {today}")
         except Exception as e:
             logger.error(f"Error getting current session: {e}")
         return None
 
-# Convenience functions for direct use
-def create_session(date: str, period_id: str, courts_price: float, telegram_poll_message_id: str) -> Optional[Sessions]:
-    """Create session - convenience function"""
-    return SessionService.create_session(date, period_id, courts_price, telegram_poll_message_id)
+    @staticmethod
+    def get_open_session() -> Optional[Sessions]:
+        """Return the session with an open poll, if any."""
+        try:
+            return cast(Optional[Sessions], Sessions.objects(is_poll_open=True).first())  # type: ignore
+        except Exception as e:
+            logger.error(f"Error getting open session: {e}")
+        return None
+
+
+# Convenience functions
+def create_session(
+    date: str,
+    period_id: str,
+    venue_id: Optional[str] = None,
+    slots: float = 0.0,
+    telegram_poll_message_id: Optional[str] = None,
+) -> Optional[Sessions]:
+    return SessionService.create_session(date, period_id, venue_id, slots, telegram_poll_message_id)
 
 def get_session(date: str) -> Optional[Sessions]:
-    """Get session by date - convenience function"""
     return SessionService.get_session_by_date(date)
 
 def update_session(date: str, **kwargs) -> Optional[Sessions]:
-    """Update session by date - convenience function"""
     return SessionService.update_session_by_date(date, **kwargs)
 
 def delete_session(date: str) -> bool:
-    """Delete session by date - convenience function"""
     return SessionService.delete_session_by_date(date)
 
 def list_sessions_by_period(period_id: str) -> List[Sessions]:
-    """List sessions by period ID - convenience function"""
     return SessionService.list_sessions_by_period_id(period_id)
 
 def get_current_session() -> Optional[Sessions]:
-    """Get current session (today) - convenience function"""
     return SessionService.get_current_session()
 
+def get_open_session() -> Optional[Sessions]:
+    return SessionService.get_open_session()

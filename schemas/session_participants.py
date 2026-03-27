@@ -2,8 +2,8 @@ from mongoengine import (
     Document, IntField, ReferenceField, CASCADE, QuerySet
 )
 
-from orms.sessions import Sessions
-from orms.users import Users
+from schemas.sessions import Sessions
+from schemas.users import Users
 
 class SessionParticipants(Document):
     user = ReferenceField(Users, required=True, reverse_delete_rule=CASCADE)

@@ -1,5 +1,5 @@
 from datetime import date
-from dtos.period_money import PeriodMoneyReport
+from models.period_money import PeriodMoneyReport
 from utils.date import format_to_dd_mm, get_next_day
 
 def get_day_of_the_week_name(day_index: int) -> str:

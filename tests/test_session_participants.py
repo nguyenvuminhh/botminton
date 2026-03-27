@@ -51,22 +51,19 @@ def setup_test_data():
         session1 = create_session(
             date=today.isoformat(),
             period_id=period_start_date,
-            courts_price=25.0,
-            telegram_poll_message_id="test_poll_1"
+            slots=6.0,
         )
-        
+
         session2 = create_session(
             date=tomorrow.isoformat(),
             period_id=period_start_date,
-            courts_price=30.0,
-            telegram_poll_message_id="test_poll_2"
+            slots=4.0,
         )
-        
+
         session3 = create_session(
             date=day_after.isoformat(),
             period_id=period_start_date,
-            courts_price=35.0,
-            telegram_poll_message_id="test_poll_3"
+            slots=8.0,
         )
         
         if all([user1, user2, test_period, session1, session2, session3]):

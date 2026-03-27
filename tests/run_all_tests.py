@@ -3,17 +3,22 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from orms.period_moneys import PeriodMoneys
-from orms.periods import Periods
-from orms.sessions import Sessions
-from orms.session_participants import SessionParticipants
-from orms.users import Users
+from schemas.period_moneys import PeriodMoneys
+from schemas.periods import Periods
+from schemas.sessions import Sessions
+from schemas.session_participants import SessionParticipants
+from schemas.shuttlecock_batches import ShuttlecockBatches
+from schemas.users import Users
+from schemas.venues import Venues
 from tests.test_basic import test_basic_functionality
+from tests.test_calculations import test_session_cost_calculation
 from tests.test_users import test_users_crud
 from tests.test_sessions import test_sessions_crud, test_session_edge_cases
 from tests.test_periods import run_all_period_tests
 from tests.test_session_participants import test_session_participants_crud, test_session_participants_edge_cases
 from tests.test_period_moneys import test_period_money_payment_status
+from tests.test_venues import test_venues_crud
+from tests.test_shuttlecock_batches import test_shuttlecock_batches_crud
 from utils.database import db_manager
 
 def clear_database():
@@ -25,6 +30,8 @@ def clear_database():
     PeriodMoneys.drop_collection()
     Sessions.drop_collection()
     SessionParticipants.drop_collection()
+    ShuttlecockBatches.drop_collection()
+    Venues.drop_collection()
     print("✅ Database cleared")
 
 def run_all_tests():
@@ -63,6 +70,18 @@ def run_all_tests():
     # Test 9: Period Money Payment Status
     print("\n📋 Test 9: Period Money Payment Status")
     test_period_money_payment_status()
+
+    # Test 10: Venues CRUD
+    print("\n📋 Test 10: Venues CRUD")
+    test_venues_crud()
+
+    # Test 11: Shuttlecock Batches CRUD
+    print("\n📋 Test 11: Shuttlecock Batches CRUD")
+    test_shuttlecock_batches_crud()
+
+    # Test 12: Calculation Service
+    print("\n📋 Test 12: Calculation Service")
+    test_session_cost_calculation()
 
     print("\n🎉 All tests completed!")
 

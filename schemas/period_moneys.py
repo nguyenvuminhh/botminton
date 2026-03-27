@@ -2,8 +2,8 @@ from mongoengine import (
     Document, FloatField, ReferenceField, BooleanField, CASCADE
 )
 
-from orms.periods import Periods
-from orms.users import Users
+from schemas.periods import Periods
+from schemas.users import Users
 
 class PeriodMoneys(Document):
     period = ReferenceField(Periods, required=True, reverse_delete_rule=CASCADE)

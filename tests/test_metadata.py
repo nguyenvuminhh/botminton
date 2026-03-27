@@ -3,7 +3,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.metadata import get_metadata, update_metadata
-from orms.metadata import Metadata
+from schemas.metadata import Metadata
 from utils.database import db_manager
 import logging
 

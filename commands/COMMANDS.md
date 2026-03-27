@@ -1,0 +1,47 @@
+# Bot Commands
+
+## Group chat
+
+### General
+| Command | Description |
+|---|---|
+| `/start` | Register yourself with the bot |
+
+### Poll
+| Command | Description |
+|---|---|
+| `/open_poll` | Send a YES/NO poll to the group for the next session. Auto-closes Thursday midnight. |
+| `/close_poll` | Manually close the current poll early |
+
+### Session management (admin)
+| Command | Args | Description |
+|---|---|---|
+| `/add_player` | `@username` | Manually add a player to the current session |
+| `/remove_player` | `@username` | Remove a player from the current session |
+| `/add_plus_one` | `@username` | Add a +1 for a player |
+| `/remove_plus_one` | `@username` | Remove a +1 from a player |
+| `/set_slots` | `<number>` | Log the number of slots played (e.g. `6.0` = 3 courts × 2 hrs) |
+| `/set_venue` | `<name>` | Set the venue for the current session |
+
+### Period management (admin)
+| Command | Args | Description |
+|---|---|---|
+| `/new_period` | `[YYYY-MM-DD]` | Close the current period and start a new one. Defaults to today. |
+| `/period_summary` | — | Calculate and post the money summary for the current period |
+| `/add_shuttlecock` | `<YYYY-MM-DD> <price> [tubes]` | Log a shuttlecock batch (e.g. `/add_shuttlecock 2026-02-23 11.4 12`) |
+
+### Venue management (admin)
+| Command | Args | Description |
+|---|---|---|
+| `/list_venues` | — | List all registered venues with price per slot |
+| `/add_venue` | `<price> <location> <name>` | Register a new venue (e.g. `/add_venue 10.0 Unisport Unisport student`) |
+
+---
+
+## Private chat (admin only)
+
+| Command | Description |
+|---|---|
+| `/print_user_id` | Print your Telegram user ID and admin status |
+| `/print_group_chat_id` | Print the group chat ID |
+| `/test_admin` | Verify admin access |
