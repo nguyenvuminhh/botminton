@@ -34,7 +34,7 @@ async def _resolve_user(context, chat_id: int, username: str):
     if not user:
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"❌ User '{username}' not found in database. They need to send /start first."
+            text=f"❌ '{username}' not found or ambiguous. Use their @username or first name exactly as it appears in the group."
         )
     return user
 

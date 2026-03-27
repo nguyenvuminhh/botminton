@@ -9,12 +9,14 @@
 | `/close_poll` | Manually close the current poll early |
 
 ### Session management (admin)
+Use `@username` for players who have one, or their first name for those who don't.
+
 | Command | Args | Description |
 |---|---|---|
-| `/add_player` | `@username` | Manually add a player to the current session |
-| `/remove_player` | `@username` | Remove a player from the current session |
-| `/add_plus_one` | `@username` | Add a +1 for a player |
-| `/remove_plus_one` | `@username` | Remove a +1 from a player |
+| `/add_player` | `<name>` | Manually add a player to the current session |
+| `/remove_player` | `<name>` | Remove a player from the current session |
+| `/add_plus_one` | `<name>` | Add a +1 for a player |
+| `/remove_plus_one` | `<name>` | Remove a +1 from a player |
 | `/set_slots` | `<number>` | Log the number of slots played (e.g. `6.0` = 3 courts × 2 hrs) |
 | `/set_venue` | `<name>` | Set the venue for the current session |
 

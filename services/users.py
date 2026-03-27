@@ -1,5 +1,5 @@
 from schemas.users import Users
-from mongoengine import DoesNotExist
+from mongoengine import DoesNotExist, MultipleObjectsReturned
 from typing import Optional, List, cast
 import logging
 
@@ -103,6 +103,9 @@ class UserService:
             return cast(Users, Users.objects.get(telegram_user_name__iexact=clean))
         except DoesNotExist:
             logger.info(f"User with username '{username}' not found")
+            return None
+        except MultipleObjectsReturned:
+            logger.warning(f"Multiple users found with name '{username}'")
             return None
         except Exception as e:
             logger.error(f"Error getting user by username '{username}': {e}")

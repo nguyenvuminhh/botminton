@@ -37,6 +37,7 @@ The venue is remembered for future sessions — you only need this when it chang
 /add_plus_one @username      # player brought a guest
 /remove_plus_one @username   # undo a plus-one
 ```
+For players without a `@username`, use their first name instead (e.g. `/add_player Minh`).
 
 **Log shuttlecocks purchased:**
 ```
