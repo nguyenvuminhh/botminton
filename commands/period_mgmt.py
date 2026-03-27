@@ -101,8 +101,9 @@ async def period_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @check_admin_middleware
 async def add_shuttlecock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    Usage: /add_shuttlecock <price> [tube_count]
-    Example: /add_shuttlecock 11.4 12
+    Usage: /add_shuttlecock <price1> [price2] [price3] ...
+    Example: /add_shuttlecock 11.4 11.4 12.0
+    Each argument is the price of one tube. Total and tube count are derived automatically.
     """
     if not update.effective_chat:
         return
@@ -112,25 +113,19 @@ async def add_shuttlecock(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not context.args:  # type: ignore
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Usage: /add_shuttlecock <price> [tube_count]"
+            text="Usage: /add_shuttlecock <price1> [price2] ...\nExample: /add_shuttlecock 11.4 11.4 12.0"
         )
         return
 
     try:
-        total_price = float(context.args[0])  # type: ignore
+        tube_prices = [float(a) for a in context.args]  # type: ignore
     except ValueError:
-        await context.bot.send_message(chat_id=chat_id, text="❌ Invalid price.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ All arguments must be numbers (one price per tube).")
         return
 
+    total_price = sum(tube_prices)
+    tube_count = len(tube_prices)
     purchase_date_str = dt_date.today().isoformat()
-
-    tube_count = None
-    if len(context.args) >= 2:  # type: ignore
-        try:
-            tube_count = int(context.args[1])  # type: ignore
-        except ValueError:
-            await context.bot.send_message(chat_id=chat_id, text="❌ tube_count must be an integer.")
-            return
 
     period = get_current_period()
     if not period:
@@ -144,10 +139,9 @@ async def add_shuttlecock(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         tube_count=tube_count,
     )
     if batch:
-        tubes_info = f", {tube_count} tubes" if tube_count else ""
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"✅ Shuttlecock batch {purchase_date_str}: {total_price} €{tubes_info} added to current period."
+            text=f"✅ {tube_count} tube(s) added: {total_price:.2f} € total."
         )
     else:
         await context.bot.send_message(chat_id=chat_id, text="❌ Failed to add shuttlecock batch.")

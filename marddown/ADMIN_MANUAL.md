@@ -40,10 +40,9 @@ The venue is remembered for future sessions — you only need this when it chang
 
 **Log shuttlecocks purchased:**
 ```
-/add_shuttlecock 11.4 12
+/add_shuttlecock 11.4 11.4 12.0
 ```
-Format: `/add_shuttlecock <total price> [number of tubes]`
-Tubes are optional. The purchase is logged to the current period.
+Each argument is the price of one tube. The bot sums them up automatically. The purchase is logged to the current period.
 
 ---
 
