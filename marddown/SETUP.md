@@ -22,8 +22,8 @@
 
 Add the bot to the group, then message it in private:
 
-- `/print_user_id` — your Telegram user ID (needed for `ADMIN_USER_ID`)
-- `/print_group_chat_id` — run this inside the group to get its chat ID
+- `/printuserid` — your Telegram user ID (needed for `ADMIN_USER_ID`)
+- `/printgroupchatid` — run this inside the group to get its chat ID
 
 > The group chat ID is typically a negative number like `-1001234567890`.
 
@@ -52,7 +52,7 @@ WEBHOOK_PORT=8443       # Default port; your platform must forward traffic here
 
 ```bash
 pip install -r requirements.txt
-python -m botminton
+python __main__.py
 ```
 
 **Local development** — leave `WEBHOOK_URL` blank. The bot uses polling mode; no public URL needed.
@@ -68,19 +68,19 @@ After the bot is running, do these steps in order:
 **a) Register a venue**
 In the group chat:
 ```
-/add_venue 10.0 Unisport "Unisport student"
+/addvenue 10.0 Unisport "Unisport student"
 ```
-Format: `/add_venue <price_per_slot> <location> <name>`
+Format: `/addvenue <price_per_slot> <location> <name>`
 
 **b) Start the first billing period**
 ```
-/end_current_and_start_new_period
+/endcurrentandstartnewperiod
 ```
 This starts a new period from today. You'll run this again at the end of each billing cycle.
 
 **c) Open the first poll**
 ```
-/open_poll
+/openpoll
 ```
 The bot sends a YES/NO poll to the group. It auto-closes Thursday midnight UTC.
 

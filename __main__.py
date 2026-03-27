@@ -81,7 +81,7 @@ def run():
                 listen="0.0.0.0",
                 port=WEBHOOK_PORT,
                 url_path=BOT_TOKEN,
-                webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
+                webhook_url=f"{WEBHOOK_URL.rstrip('/')}/{BOT_TOKEN}",
                 secret_token=WEBHOOK_SECRET,
             )
         else:
