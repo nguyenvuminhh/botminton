@@ -7,7 +7,7 @@ from commands.poll import close_poll, handle_poll_answer, open_poll
 from commands.session_mgmt import (
     add_player, add_plus_one, remove_player, remove_plus_one, set_slots, set_venue
 )
-from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_SECRET, WEBHOOK_PORT
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_SECRET, WEBHOOK_PORT, ADMIN_USER_ID
 from constants import Commands
 from schemas.metadata import Metadata
 from utils.database import db_manager
@@ -34,6 +34,31 @@ def register_command(app: Application, command: str, handler_func, chat_filter):
 async def upsert_on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user:
         upsert_user(update.effective_user)
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    import traceback
+    tb = "".join(traceback.format_exception(type(context.error), context.error, context.error.__traceback__))
+    msg = f"⚠️ Error: {context.error}\n\n<pre>{tb[-3000:]}</pre>"
+    try:
+        await context.bot.send_message(chat_id=ADMIN_USER_ID, text=msg, parse_mode="HTML")
+    except Exception:
+        logger.error(f"Failed to send error to admin: {context.error}")
+    logger.error(f"Exception while handling update: {context.error}", exc_info=context.error)
+
+
+async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message:
+        return
+    cmd = update.message.text or ""
+    user = update.effective_user
+    chat = update.effective_chat
+    sender = f"@{user.username}" if user and user.username else (user.first_name if user else "unknown")
+    chat_info = f"chat {chat.id}" if chat else "unknown chat"
+    await context.bot.send_message(
+        chat_id=ADMIN_USER_ID,
+        text=f"⚠️ Unknown command: {cmd}\nFrom: {sender} in {chat_info}"
+    )
 
 
 def run():
@@ -72,8 +97,10 @@ def run():
     register_command(app, Commands.LIST_VENUES,     list_venues,     GROUP)
     register_command(app, Commands.ADD_VENUE,       add_venue,       GROUP)
 
+    app.add_error_handler(error_handler)
     app.add_handler(PollAnswerHandler(handle_poll_answer))
     app.add_handler(MessageHandler(GROUP & filters.ALL, upsert_on_message))
+    app.add_handler(MessageHandler(filters.COMMAND, unknown_command))
 
     try:
         if WEBHOOK_URL:
