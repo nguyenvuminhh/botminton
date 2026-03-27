@@ -39,8 +39,12 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat:
         return
 
+    user_id = update.effective_user.id if update.effective_user else "unknown"
+    logger.info("open_poll called by user_id=%s", user_id)
+
     period = get_current_period()
     if not period:
+        logger.warning("open_poll: no active period")
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="❌ No active period. Create one with /new_period first."
@@ -50,6 +54,7 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Check no poll is already open
     open_session = get_open_session()
     if open_session:
+        logger.warning("open_poll: poll already open for session=%s", open_session.date)  # type: ignore
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f"❌ A poll is already open for {open_session.date}."  # type: ignore
@@ -58,6 +63,7 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     metadata = get_metadata()
     if not metadata:
+        logger.warning("open_poll: metadata not initialized")
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="❌ Metadata not initialized."
@@ -67,6 +73,7 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     from datetime import date as dt_date
     next_play_day = get_next_day(dt_date.today(), metadata.default_day_of_the_week_index)  # type: ignore
     session_date_str = next_play_day.isoformat()
+    logger.debug("open_poll: next play day=%s", session_date_str)
 
     period_start_str = period.start_date.isoformat()  # type: ignore
 
@@ -76,6 +83,7 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         venue_id=metadata.default_venue_id or None,  # type: ignore
     )
     if not session:
+        logger.error("open_poll: failed to create session for date=%s (already exists?)", session_date_str)
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f"❌ Could not create session for {session_date_str} (already exists?)."
@@ -95,6 +103,7 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         options=[opt.value for opt in ALL_POLL_OPTIONS],
         is_anonymous=False,
     )
+    logger.debug("open_poll: sent poll message_id=%s to group", poll_message.message_id)
 
     update_session(
         session_date_str,
@@ -110,12 +119,12 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         name=f"close_poll_{session_date_str}",
         data=session_date_str,
     )
+    logger.info("open_poll: poll opened for session=%s, auto-close scheduled at %s UTC", session_date_str, close_time)
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=f"✅ Poll opened for {format_to_dd_mm(next_play_day)}. Auto-closes {close_time.strftime('%d/%m %H:%M')} UTC."
     )
-    logger.info(f"Poll opened for session {session_date_str}")
 
 
 @check_admin_middleware
@@ -124,15 +133,21 @@ async def close_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if not update.effective_chat:
         return
 
+    user_id = update.effective_user.id if update.effective_user else "unknown"
+    logger.info("close_poll called by user_id=%s", user_id)
+
     session = get_open_session()
     if not session:
+        logger.warning("close_poll: no open poll found")
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="❌ No open poll found."
         )
         return
 
-    await _do_close_poll(context, str(session.date.isoformat()))  # type: ignore
+    session_date_str = str(session.date.isoformat())  # type: ignore
+    await _do_close_poll(context, session_date_str)
+    logger.info("close_poll: manually closed poll for session=%s", session_date_str)
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=f"✅ Poll for {session.date} closed."  # type: ignore
@@ -142,8 +157,9 @@ async def close_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 async def _auto_close_poll_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Job callback to auto-close the poll."""
     session_date_str: str = context.job.data  # type: ignore
+    logger.info("_auto_close_poll_job: auto-closing poll for session=%s", session_date_str)
     await _do_close_poll(context, session_date_str)
-    logger.info(f"Auto-closed poll for session {session_date_str}")
+    logger.info("_auto_close_poll_job: auto-closed poll for session=%s", session_date_str)
 
 
 async def _do_close_poll(context: ContextTypes.DEFAULT_TYPE, session_date_str: str) -> None:
@@ -151,18 +167,22 @@ async def _do_close_poll(context: ContextTypes.DEFAULT_TYPE, session_date_str: s
     from services.sessions import get_session
     session = get_session(session_date_str)
     if not session or not session.is_poll_open:  # type: ignore
+        logger.debug("_do_close_poll: session=%s not found or already closed, skipping", session_date_str)
         return
 
     if session.telegram_poll_message_id:  # type: ignore
+        logger.debug("_do_close_poll: stopping Telegram poll message_id=%s", session.telegram_poll_message_id)  # type: ignore
         try:
             await context.bot.stop_poll(
                 chat_id=COMMON_GROUP_CHAT_ID,
                 message_id=int(session.telegram_poll_message_id),  # type: ignore
             )
+            logger.info("_do_close_poll: stopped Telegram poll for session=%s", session_date_str)
         except Exception as e:
-            logger.error(f"Failed to stop Telegram poll: {e}")
+            logger.error("_do_close_poll: failed to stop Telegram poll for session=%s: %s", session_date_str, e)
 
     update_session(session_date_str, is_poll_open=False)
+    logger.info("_do_close_poll: session=%s marked as closed", session_date_str)
 
 
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -177,19 +197,24 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     voter = poll_answer.user
     telegram_id = str(voter.id)
 
+    logger.info("handle_poll_answer: voter user_id=%s option_ids=%s", telegram_id, poll_answer.option_ids)
+
     upsert_user(voter)
 
     session = get_open_session()
     if not session:
+        logger.warning("handle_poll_answer: poll answer from user_id=%s but no open session", telegram_id)
         return
 
     session_date_str = session.date.isoformat()  # type: ignore
     voted_yes = YES_OPTION_INDEX in poll_answer.option_ids
 
     if voted_yes:
+        logger.info("handle_poll_answer: user_id=%s voted YES for session=%s", telegram_id, session_date_str)
         create_participant(user_telegram_id=telegram_id, session_date=session_date_str)
     else:
         # Voted NO or retracted vote
+        logger.info("handle_poll_answer: user_id=%s voted NO/retracted for session=%s", telegram_id, session_date_str)
         delete_participant_by_user_and_session(
             user_telegram_id=telegram_id,
             session_date=session_date_str,

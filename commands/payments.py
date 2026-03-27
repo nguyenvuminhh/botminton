@@ -30,19 +30,25 @@ async def payment_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else "unknown"
+    logger.info("payment_status called by user_id=%s", user_id)
+
     period = get_last_closed_period()
     if not period:
+        logger.warning("payment_status: no closed period found")
         await context.bot.send_message(chat_id=chat_id, text="❌ No closed period found.")
         return
 
     records = _sorted_records(period.start_date.isoformat())  # type: ignore
     if not records:
+        logger.warning("payment_status: no payment records for period=%s", period.start_date)  # type: ignore
         await context.bot.send_message(
             chat_id=chat_id,
             text="❌ No payment records found. Run /period_summary first."
         )
         return
 
+    logger.info("payment_status: found %d record(s) for period=%s", len(records), period.start_date)  # type: ignore
     start_str = format_to_dd_mm(period.start_date)  # type: ignore
     end_str = format_to_dd_mm(period.end_date) if period.end_date else "?"  # type: ignore
     lines = [f"Period {start_str} → {end_str}"]
@@ -61,8 +67,11 @@ async def mark_paid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else "unknown"
+    logger.info("mark_paid called by user_id=%s args=%s", user_id, context.args)
 
     if not context.args:  # type: ignore
+        logger.warning("mark_paid: no indices provided by user_id=%s", user_id)
         await context.bot.send_message(
             chat_id=chat_id,
             text="Usage: /mark_paid 1 3 5\nRun /payment_status first to see the index."
@@ -71,11 +80,13 @@ async def mark_paid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     period = get_last_closed_period()
     if not period:
+        logger.warning("mark_paid: no closed period found")
         await context.bot.send_message(chat_id=chat_id, text="❌ No closed period found.")
         return
 
     records = _sorted_records(period.start_date.isoformat())  # type: ignore
     if not records:
+        logger.warning("mark_paid: no payment records for period=%s", period.start_date)  # type: ignore
         await context.bot.send_message(
             chat_id=chat_id,
             text="❌ No payment records found. Run /period_summary first."
@@ -85,6 +96,7 @@ async def mark_paid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         indices = [int(a) for a in context.args]  # type: ignore
     except ValueError:
+        logger.warning("mark_paid: non-integer indices from user_id=%s args=%s", user_id, context.args)
         await context.bot.send_message(chat_id=chat_id, text="❌ Indices must be integers.")
         return
 
@@ -97,11 +109,15 @@ async def mark_paid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             invalid.append(idx)
 
     if invalid:
+        logger.warning("mark_paid: invalid indices %s (valid range 1-%d) from user_id=%s", invalid, len(records), user_id)
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"❌ Invalid indices: {', '.join(str(i) for i in invalid)} (valid: 1–{len(records)})"
         )
         return
+
+    selected_names = [rec.user.telegram_user_name if rec.user else "?" for _, rec in selected]  # type: ignore
+    logger.info("mark_paid: staging %d player(s) to mark as paid: %s", len(selected), selected_names)
 
     lines = ["Mark these as paid?"]
     for _, rec in selected:
@@ -125,8 +141,12 @@ async def confirm_paid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else "unknown"
+    logger.info("confirm_paid called by user_id=%s", user_id)
+
     pending = context.user_data.get(_PENDING_KEY)  # type: ignore
     if not pending:
+        logger.warning("confirm_paid: no pending mark_paid state for user_id=%s", user_id)
         await context.bot.send_message(
             chat_id=chat_id,
             text="❌ No pending /mark_paid. Run /mark_paid <indices> first."
@@ -136,6 +156,7 @@ async def confirm_paid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     period_start_date = pending["period_start_date"]
     telegram_ids = pending["telegram_ids"]
     del context.user_data[_PENDING_KEY]  # type: ignore
+    logger.info("confirm_paid: confirming %d payment(s) for period=%s", len(telegram_ids), period_start_date)
 
     succeeded = []
     failed = []
@@ -143,10 +164,13 @@ async def confirm_paid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         result = mark_as_paid_by_telegram_id(period_start_date, tid)
         if result:
             username = result.user.telegram_user_name if result.user else tid  # type: ignore
+            logger.info("confirm_paid: marked paid user_id=%s username=%s period=%s", tid, username, period_start_date)
             succeeded.append(username)
         else:
+            logger.error("confirm_paid: failed to mark paid user_id=%s period=%s", tid, period_start_date)
             failed.append(tid)
 
+    logger.info("confirm_paid: succeeded=%s failed=%s", succeeded, failed)
     lines = []
     if succeeded:
         lines.append("✅ Marked as paid: " + ", ".join(succeeded))
