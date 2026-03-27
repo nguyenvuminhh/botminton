@@ -116,6 +116,16 @@ class PeriodService:
         return None
 
     @staticmethod
+    def get_last_closed_period() -> Optional[Periods]:
+        """Return the most recently closed period (has an end_date)."""
+        try:
+            period = Periods.objects(end_date__ne=None).order_by('-end_date').first()  # type: ignore
+            return cast(Optional[Periods], period)
+        except Exception as e:
+            logger.error(f"Error getting last closed period: {e}")
+        return None
+
+    @staticmethod
     def get_period_count() -> int:
         try:
             return int(Periods.objects.count())  # type: ignore
@@ -142,6 +152,9 @@ def list_all_periods(limit: int = 100, offset: int = 0) -> List[Periods]:
 
 def get_current_period() -> Optional[Periods]:
     return PeriodService.get_current_period()
+
+def get_last_closed_period() -> Optional[Periods]:
+    return PeriodService.get_last_closed_period()
 
 def get_period_count() -> int:
     return PeriodService.get_period_count()

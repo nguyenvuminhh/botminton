@@ -12,8 +12,7 @@ from services.metadata import get_metadata
 from services.periods import get_current_period
 from services.sessions import create_session, get_open_session, update_session
 from services.session_participants import create_participant, delete_participant_by_user_and_session
-from services.users import create_user
-from utils.decorator import check_admin_middleware
+from utils.decorator import check_admin_middleware, upsert_user
 from utils.date import get_next_day, format_to_dd_mm
 from utils.messages import get_poll_title
 import logging
@@ -71,7 +70,11 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     period_start_str = period.start_date.isoformat()  # type: ignore
 
-    session = create_session(date=session_date_str, period_id=period_start_str)
+    session = create_session(
+        date=session_date_str,
+        period_id=period_start_str,
+        venue_id=metadata.default_venue_id or None,  # type: ignore
+    )
     if not session:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -173,12 +176,8 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     poll_answer = update.poll_answer
     voter = poll_answer.user
     telegram_id = str(voter.id)
-    username = voter.username or voter.first_name
 
-    # Ensure the user exists in DB
-    from services.users import get_user
-    if not get_user(telegram_id):
-        create_user(telegram_id=telegram_id, telegram_user_name=username)
+    upsert_user(voter)
 
     session = get_open_session()
     if not session:

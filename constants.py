@@ -2,7 +2,6 @@ from enum import StrEnum
 
 
 class Commands(StrEnum):
-    START = "start"
     PRINT_GROUP_CHAT_ID = "print_group_chat_id"
     PRINT_USER_ID = "print_user_id"
     TEST_ADMIN = "test_admin"
@@ -17,12 +16,16 @@ class Commands(StrEnum):
     SET_SLOTS = "set_slots"
     SET_VENUE = "set_venue"
     # Period management
-    NEW_PERIOD = "new_period"
+    NEW_PERIOD = "end_current_and_start_new_period"
     PERIOD_SUMMARY = "period_summary"
     ADD_SHUTTLECOCK = "add_shuttlecock"
     # Venues
     LIST_VENUES = "list_venues"
     ADD_VENUE = "add_venue"
+    # Payment tracking
+    PAYMENT_STATUS = "payment_status"
+    MARK_PAID = "mark_paid"
+    CONFIRM_PAID = "confirm_paid"
 
 
 class PollOptions(StrEnum):

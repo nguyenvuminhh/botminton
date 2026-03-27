@@ -4,35 +4,28 @@ from telegram.ext import ContextTypes
 from services.users import create_user, get_user, update_user
 from utils.user import check_admin
 
-# ✅ Decorator: Insert user if not exists
+
+def upsert_user(telegram_user) -> None:
+    """Create or update a user record from a Telegram User object."""
+    telegram_id = str(telegram_user.id)
+    username = telegram_user.username or telegram_user.first_name
+    if not get_user(telegram_id):
+        create_user(telegram_id=telegram_id, telegram_user_name=username)
+    else:
+        update_user(telegram_id, telegram_user_name=username, is_admin=check_admin(telegram_id))
+
+
 def user_insertion_middleware(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
         if not user:
             return
-
-        user_telegram_id = str(user.id)
-        existing_user = get_user(user_telegram_id)
-
-        if not existing_user:
-            create_user(
-                telegram_id=user_telegram_id,
-                telegram_user_name=user.username or user.first_name,
-            )
-        else:
-            update_user(
-                user_telegram_id,
-                telegram_user_name=user.username or user.first_name,
-                is_admin=check_admin(user_telegram_id)
-            )
-
-
+        upsert_user(user)
         return await func(update, context)
-
     return wrapper
 
-# ✅ Decorator: Allow only admins
+
 def check_admin_middleware(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):

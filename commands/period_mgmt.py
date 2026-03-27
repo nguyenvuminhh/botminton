@@ -1,6 +1,6 @@
 """
 Period management commands (admin-only):
-  /new_period, /period_summary, /add_shuttlecock
+  /end_current_and_start_new_period, /period_summary, /add_shuttlecock
 """
 
 from datetime import date as dt_date
@@ -9,6 +9,7 @@ from telegram.ext import ContextTypes
 
 from config import COMMON_GROUP_CHAT_ID
 from services.calculations import calculate_period_report
+from services.period_moneys import upsert_period_money
 from services.periods import create_period, get_current_period, update_period
 from services.shuttlecock_batches import create_batch
 from utils.decorator import check_admin_middleware
@@ -19,10 +20,10 @@ logger = logging.getLogger(__name__)
 
 
 @check_admin_middleware
-async def new_period(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def end_current_and_start_new_period(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    Usage: /new_period [YYYY-MM-DD]
-    Closes the current period (if any) and starts a new one. Defaults to today.
+    Usage: /end_current_and_start_new_period [YYYY-MM-DD]
+    Posts the period summary to the group, closes the current period, then starts a new one. Defaults to today.
     """
     if not update.effective_chat:
         return
@@ -40,6 +41,21 @@ async def new_period(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     current = get_current_period()
     if current:
+        # Post summary before closing
+        report = calculate_period_report(current.start_date.isoformat())  # type: ignore
+        if report:
+            for entry in report.personal_period_money:
+                upsert_period_money(current.start_date.isoformat(), entry.person_id, entry.period_money)  # type: ignore
+            message = get_money_message(report)
+            await context.bot.send_message(chat_id=COMMON_GROUP_CHAT_ID, text=message)
+            await context.bot.send_message(
+                chat_id=COMMON_GROUP_CHAT_ID,
+                text=get_react_after_sending_money_message()
+            )
+            reply_lines.append("✅ Summary posted to group.")
+        else:
+            reply_lines.append("⚠️ Could not generate summary (no data?).")
+
         today = dt_date.today().isoformat()
         update_period(current.start_date.isoformat(), end_date=today)  # type: ignore
         reply_lines.append(f"✅ Closed period {current.start_date} (end: {today}).")  # type: ignore
@@ -69,6 +85,9 @@ async def period_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not report:
         await context.bot.send_message(chat_id=chat_id, text="❌ Could not generate report.")
         return
+
+    for entry in report.personal_period_money:
+        upsert_period_money(period.start_date.isoformat(), entry.person_id, entry.period_money)  # type: ignore
 
     message = get_money_message(report)
     await context.bot.send_message(chat_id=COMMON_GROUP_CHAT_ID, text=message)

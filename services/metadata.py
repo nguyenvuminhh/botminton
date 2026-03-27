@@ -21,10 +21,11 @@ class MetadataService:
     
     @staticmethod
     def update_metadata(
-        default_location: Optional[str] = None, 
-        default_start_time: Optional[str] = None, 
-        default_end_time: Optional[str] = None, 
-        default_day_of_the_week_index: Optional[int] = None, 
+        default_location: Optional[str] = None,
+        default_start_time: Optional[str] = None,
+        default_end_time: Optional[str] = None,
+        default_day_of_the_week_index: Optional[int] = None,
+        default_venue_id: Optional[str] = None,
     ) -> Optional[Metadata]:
         try:
             metadata = Metadata.get()
@@ -37,6 +38,7 @@ class MetadataService:
             "default_start_time": default_start_time,
             "default_end_time": default_end_time,
             "default_day_of_the_week_index": default_day_of_the_week_index,
+            "default_venue_id": default_venue_id,
         }
 
         for field, value in update_fields.items():
@@ -55,14 +57,16 @@ def get_metadata() -> Optional[Metadata]:
     return MetadataService.get_metadata()
 
 def update_metadata(
-    default_location: Optional[str] = None, 
-    default_start_time: Optional[str] = None, 
-    default_end_time: Optional[str] = None, 
-    default_day_of_the_week_index: Optional[int] = None, 
+    default_location: Optional[str] = None,
+    default_start_time: Optional[str] = None,
+    default_end_time: Optional[str] = None,
+    default_day_of_the_week_index: Optional[int] = None,
+    default_venue_id: Optional[str] = None,
 ) -> Optional[Metadata]:
     return MetadataService.update_metadata(
         default_location=default_location,
         default_start_time=default_start_time,
         default_end_time=default_end_time,
         default_day_of_the_week_index=default_day_of_the_week_index,
+        default_venue_id=default_venue_id,
     )

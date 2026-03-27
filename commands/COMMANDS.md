@@ -2,11 +2,6 @@
 
 ## Group chat
 
-### General
-| Command | Description |
-|---|---|
-| `/start` | Register yourself with the bot |
-
 ### Poll
 | Command | Description |
 |---|---|
@@ -26,7 +21,7 @@
 ### Period management (admin)
 | Command | Args | Description |
 |---|---|---|
-| `/new_period` | `[YYYY-MM-DD]` | Close the current period and start a new one. Defaults to today. |
+| `/end_current_and_start_new_period` | `[YYYY-MM-DD]` | Post period summary to group, close current period, start a new one. Defaults to today. |
 | `/period_summary` | — | Calculate and post the money summary for the current period |
 | `/add_shuttlecock` | `<YYYY-MM-DD> <price> [tubes]` | Log a shuttlecock batch (e.g. `/add_shuttlecock 2026-02-23 11.4 12`) |
 
@@ -40,8 +35,11 @@
 
 ## Private chat (admin only)
 
-| Command | Description |
-|---|---|
-| `/print_user_id` | Print your Telegram user ID and admin status |
-| `/print_group_chat_id` | Print the group chat ID |
-| `/test_admin` | Verify admin access |
+| Command | Args | Description |
+|---|---|---|
+| `/print_user_id` | — | Print your Telegram user ID and admin status |
+| `/print_group_chat_id` | — | Print the group chat ID |
+| `/test_admin` | — | Verify admin access |
+| `/payment_status` | — | Show numbered paid/unpaid list for the most recently closed period |
+| `/mark_paid` | `1 3 5 ...` | Preview players to mark as paid (by index from `/payment_status`), ask for confirmation |
+| `/confirm_paid` | — | Confirm the pending `/mark_paid` action |

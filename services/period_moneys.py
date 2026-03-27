@@ -334,6 +334,17 @@ class PeriodMoneyService:
             return 0.0
         
     @staticmethod
+    def upsert_period_money(period_start_date: str, user_telegram_id: str, amount: float) -> Optional[PeriodMoneys]:
+        """Create or update a period money record, preserving has_paid if it already exists."""
+        existing = PeriodMoneyService.get_period_money_by_date(period_start_date, user_telegram_id)
+        if existing:
+            existing.amount = amount  # type: ignore
+            existing.save()
+            logger.info(f"Updated period money amount for user {user_telegram_id} in period {period_start_date}")
+            return existing
+        return PeriodMoneyService.create_period_money(period_start_date, user_telegram_id, amount)
+
+    @staticmethod
     def mark_as_paid_by_telegram_id(period_start_date: str, user_telegram_id: str) -> Optional[PeriodMoneys]:
         """
         Mark period money as paid by period start date and user telegram ID
@@ -482,6 +493,10 @@ def list_period_moneys_by_user(user_telegram_id: str) -> List[PeriodMoneys]:
 def get_total_money_for_period(period_start_date: str) -> float:
     """Get total money for period - convenience function"""
     return PeriodMoneyService.get_total_money_for_period(period_start_date)
+
+def upsert_period_money(period_start_date: str, user_telegram_id: str, amount: float) -> Optional[PeriodMoneys]:
+    """Upsert period money - convenience function"""
+    return PeriodMoneyService.upsert_period_money(period_start_date, user_telegram_id, amount)
 
 def mark_as_paid_by_telegram_id(period_start_date: str, user_telegram_id: str) -> Optional[PeriodMoneys]:
     """Mark period money as paid by telegram ID - convenience function"""

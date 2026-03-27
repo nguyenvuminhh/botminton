@@ -12,6 +12,7 @@ from services.session_participants import (
     get_participant_by_user_and_session,
     update_additional_participants,
 )
+from services.metadata import update_metadata
 from services.sessions import get_open_session, update_session
 from services.users import get_user_by_username
 from services.venues import get_venue_by_name
@@ -212,8 +213,9 @@ async def set_venue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     session_date = session.date.isoformat()  # type: ignore
-    update_session(session_date, venue=venue_name)
+    update_session(session_date, venue=str(venue.id))  # type: ignore
+    update_metadata(default_venue_id=str(venue.id))  # type: ignore
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"✅ Session {session_date}: venue set to '{venue_name}' ({venue.price_per_slot} €/slot)."  # type: ignore
+        text=f"✅ Session {session_date}: venue set to '{venue_name}' ({venue.price_per_slot} €/slot). Saved as default."  # type: ignore
     )

@@ -3,6 +3,7 @@ from mongoengine import Document, StringField, IntField
 class Metadata(Document):
     singleton_id = StringField(primary_key=True, default="singleton")
 
+    default_venue_id = StringField()
     default_location = StringField(default="Unisport")
     default_start_time = StringField(default="20:30")
     default_end_time = StringField(default="22:00")
