@@ -19,13 +19,13 @@ async def print_user_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await update.message.reply_text("This command can only be used in a group chat.")
         return
-    
+
     user = update.effective_user
     if not user or not user.id:
         if not update.message:
             return
         await update.message.reply_text("This command can only be used in a private chat.")
         return
-    
+
     is_admin = check_admin(user.id)
     await context.bot.send_message(chat_id=group_chat.id, text=f"Your User ID: {user.id}. You are {'an admin' if is_admin else 'not an admin'}.")

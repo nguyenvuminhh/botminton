@@ -2,30 +2,30 @@ from enum import StrEnum
 
 
 class Commands(StrEnum):
-    PRINT_GROUP_CHAT_ID = "print_group_chat_id"
-    PRINT_USER_ID = "print_user_id"
-    TEST_ADMIN = "test_admin"
+    PRINT_GROUP_CHAT_ID = "printgroupchatid"
+    PRINT_USER_ID = "printuserid"
+    TEST_ADMIN = "testadmin"
     # Poll
-    OPEN_POLL = "open_poll"
-    CLOSE_POLL = "close_poll"
+    OPEN_POLL = "openpoll"
+    CLOSE_POLL = "closepoll"
     # Session management
-    ADD_PLAYER = "add_player"
-    REMOVE_PLAYER = "remove_player"
-    ADD_PLUS_ONE = "add_plus_one"
-    REMOVE_PLUS_ONE = "remove_plus_one"
-    SET_SLOTS = "set_slots"
-    SET_VENUE = "set_venue"
+    ADD_PLAYER = "addplayer"
+    REMOVE_PLAYER = "removeplayer"
+    ADD_PLUS_ONE = "addplusone"
+    REMOVE_PLUS_ONE = "removeplusone"
+    SET_SLOTS = "setslots"
+    SET_VENUE = "setvenue"
     # Period management
-    NEW_PERIOD = "end_current_and_start_new_period"
-    PERIOD_SUMMARY = "period_summary"
-    ADD_SHUTTLECOCK = "add_shuttlecock"
+    NEW_PERIOD = "endcurrentandstartnewperiod"
+    PERIOD_SUMMARY = "periodsummary"
+    ADD_SHUTTLECOCK = "addshuttlecock"
     # Venues
-    LIST_VENUES = "list_venues"
-    ADD_VENUE = "add_venue"
+    LIST_VENUES = "listvenues"
+    ADD_VENUE = "addvenue"
     # Payment tracking
-    PAYMENT_STATUS = "payment_status"
-    MARK_PAID = "mark_paid"
-    CONFIRM_PAID = "confirm_paid"
+    PAYMENT_STATUS = "paymentstatus"
+    MARK_PAID = "markpaid"
+    CONFIRM_PAID = "confirmpaid"
 
 
 class PollOptions(StrEnum):

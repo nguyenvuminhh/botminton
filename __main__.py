@@ -1,24 +1,21 @@
 from commands.admin import add_venue, list_venues
+from commands.print_id import print_group_chat_id, print_user_id
+from commands.start import test_admin
 from commands.payments import confirm_paid, mark_paid, payment_status
 from commands.period_mgmt import add_shuttlecock, end_current_and_start_new_period, period_summary
 from commands.poll import close_poll, handle_poll_answer, open_poll
-from commands.print_id import print_group_chat_id, print_user_id
 from commands.session_mgmt import (
     add_player, add_plus_one, remove_player, remove_plus_one, set_slots, set_venue
 )
-from commands.start import test_admin
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_SECRET, WEBHOOK_PORT
 from constants import Commands
 from schemas.metadata import Metadata
 from utils.database import db_manager
-from utils.decorator import upsert_user
+from utils.decorator import upsert_user, user_insertion_middleware
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, PollAnswerHandler, Application, filters, ContextTypes
 import logging
 
-from utils.decorator import user_insertion_middleware
-
-# Configure logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -50,13 +47,14 @@ def run():
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # Private only (debug/utility + payment tracking)
+    # Private only — debug + payment tracking
     register_command(app, Commands.PRINT_GROUP_CHAT_ID, print_group_chat_id, PRIVATE)
     register_command(app, Commands.PRINT_USER_ID,       print_user_id,       PRIVATE)
     register_command(app, Commands.TEST_ADMIN,          test_admin,          PRIVATE)
-    register_command(app, Commands.PAYMENT_STATUS,      payment_status,      PRIVATE)
-    register_command(app, Commands.MARK_PAID,           mark_paid,           PRIVATE)
-    register_command(app, Commands.CONFIRM_PAID,        confirm_paid,        PRIVATE)
+    # Private only — payment tracking
+    register_command(app, Commands.PAYMENT_STATUS, payment_status, PRIVATE)
+    register_command(app, Commands.MARK_PAID,      mark_paid,      PRIVATE)
+    register_command(app, Commands.CONFIRM_PAID,   confirm_paid,   PRIVATE)
 
     # Group only — all functional commands
     register_command(app, Commands.OPEN_POLL,       open_poll,       GROUP)
@@ -73,10 +71,7 @@ def run():
     register_command(app, Commands.LIST_VENUES,     list_venues,     GROUP)
     register_command(app, Commands.ADD_VENUE,       add_venue,       GROUP)
 
-    # Poll answer handler (tracks individual votes for non-anonymous polls)
     app.add_handler(PollAnswerHandler(handle_poll_answer))
-
-    # Catch-all: upsert any group member who sends a message
     app.add_handler(MessageHandler(GROUP & filters.ALL, upsert_on_message))
 
     try:
@@ -98,5 +93,4 @@ def run():
         db_manager.disconnect()
 
 
-if __name__ == "__main__":
-    run()
+run()
