@@ -1,1 +1,1 @@
-web: python -m botminton
+web: python __main__.py
