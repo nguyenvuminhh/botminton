@@ -1,4 +1,4 @@
-from commands.admin import add_venue, list_venues
+from commands.admin import add_venue, list_venues, set_schedule
 from commands.print_id import print_group_chat_id, print_user_id
 from commands.start import test_admin
 from commands.payments import confirm_paid, mark_paid, payment_status
@@ -47,7 +47,8 @@ def run():
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # Private only — debug + payment tracking
+    # Private only — debug + admin config + payment tracking
+    register_command(app, Commands.SET_SCHEDULE,    set_schedule,    PRIVATE)
     register_command(app, Commands.PRINT_GROUP_CHAT_ID, print_group_chat_id, PRIVATE)
     register_command(app, Commands.PRINT_USER_ID,       print_user_id,       PRIVATE)
     register_command(app, Commands.TEST_ADMIN,          test_admin,          PRIVATE)

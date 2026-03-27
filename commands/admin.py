@@ -1,11 +1,12 @@
 """
 Venue management commands (admin-only):
-  /list_venues, /add_venue
+  /list_venues, /add_venue, /setschedule
 """
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from services.metadata import get_metadata, update_metadata
 from services.venues import create_venue, list_all_venues
 from utils.decorator import check_admin_middleware
 import logging
@@ -69,3 +70,62 @@ async def add_venue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     else:
         await context.bot.send_message(chat_id=chat_id, text=f"❌ Failed to add venue (name already exists?).")
+
+
+_DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+_DAY_ABBREVS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+@check_admin_middleware
+async def set_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Usage: /setschedule <start_time> <end_time> [day]
+    Day can be mon/tue/wed/thu/fri/sat/sun, full name, or index (0=Mon, 6=Sun).
+    Example: /setschedule 20:30 22:00 fri
+    """
+    if not update.effective_chat:
+        return
+
+    chat_id = update.effective_chat.id
+
+    if not context.args or len(context.args) < 2:  # type: ignore
+        metadata = get_metadata()
+        if metadata:
+            day_name = _DAY_NAMES[metadata.default_day_of_the_week_index].capitalize()  # type: ignore
+            current = f"{metadata.default_start_time} – {metadata.default_end_time}, {day_name}"  # type: ignore
+        else:
+            current = "unknown"
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"Current schedule: {current}\nUsage: /setschedule <start> <end> [day]\nExample: /setschedule 20:30 22:00 fri"
+        )
+        return
+
+    start_time = context.args[0]  # type: ignore
+    end_time = context.args[1]  # type: ignore
+    day_index = None
+
+    if len(context.args) >= 3:  # type: ignore
+        day_arg = context.args[2].lower()  # type: ignore
+        if day_arg in _DAY_NAMES:
+            day_index = _DAY_NAMES.index(day_arg)
+        elif day_arg in _DAY_ABBREVS:
+            day_index = _DAY_ABBREVS.index(day_arg)
+        else:
+            try:
+                day_index = int(day_arg)
+                if not 0 <= day_index <= 6:
+                    raise ValueError
+            except ValueError:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="❌ Invalid day. Use mon/tue/wed/thu/fri/sat/sun or 0–6."
+                )
+                return
+
+    update_metadata(default_start_time=start_time, default_end_time=end_time, default_day_of_the_week_index=day_index)
+    day_str = f", {_DAY_NAMES[day_index].capitalize()}" if day_index is not None else ""
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"✅ Schedule updated: {start_time} – {end_time}{day_str}."
+    )

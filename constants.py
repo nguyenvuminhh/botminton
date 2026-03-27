@@ -22,6 +22,7 @@ class Commands(StrEnum):
     # Venues
     LIST_VENUES = "listvenues"
     ADD_VENUE = "addvenue"
+    SET_SCHEDULE = "setschedule"
     # Payment tracking
     PAYMENT_STATUS = "paymentstatus"
     MARK_PAID = "markpaid"
