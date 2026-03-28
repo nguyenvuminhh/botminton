@@ -20,8 +20,6 @@ from services.sessions import SessionService
 from services.periods import PeriodService
 from services.shuttlecock_batches import ShuttlecockBatchService
 from services.users import UserService
-from schemas.sessions import Sessions
-from schemas.users import Users
 import logging
 
 logger = logging.getLogger(__name__)

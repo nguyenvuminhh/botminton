@@ -81,7 +81,7 @@ async def add_venue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     else:
         logger.error("add_venue: failed to create venue name=%r (already exists?)", name)
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ Failed to add venue (name already exists?).")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Failed to add venue (name already exists?).")
 
 
 _DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]

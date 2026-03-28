@@ -39,7 +39,7 @@ def test_venues_crud():
         fetched = get_venue_by_name(TEST_NAME)
         assert fetched is not None
         assert fetched.name == TEST_NAME
-        print(f"✅ Fetched venue by name")
+        print("✅ Fetched venue by name")
 
         # UPDATE
         updated = update_venue(TEST_NAME, price_per_slot=12.0)

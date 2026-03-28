@@ -8,7 +8,6 @@ from services.shuttlecock_batches import (
 )
 from services.periods import create_period, delete_period
 from utils.database import db_manager
-from datetime import date as dt_date
 import logging
 
 logging.basicConfig(level=logging.INFO)

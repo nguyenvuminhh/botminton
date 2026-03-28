@@ -1,8 +1,6 @@
 from datetime import date as dt_date
 from mongoengine import DoesNotExist, ValidationError, MultipleObjectsReturned, NotUniqueError
 from schemas.periods import Periods
-from schemas.period_moneys import PeriodMoneys
-from schemas.users import Users
 from typing import Optional, List, cast
 import logging
 

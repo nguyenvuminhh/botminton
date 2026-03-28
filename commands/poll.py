@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import COMMON_GROUP_CHAT_ID
-from constants import ALL_POLL_OPTIONS, PollOptions, POLL_OPTIONS_TO_NUMBER_MAPPING
+from constants import ALL_POLL_OPTIONS, PollOptions
 from services.metadata import get_metadata
 from services.periods import get_current_period
 from services.sessions import create_session, get_open_session, update_session

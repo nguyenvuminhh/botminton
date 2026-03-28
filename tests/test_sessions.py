@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.sessions import SessionService, create_session, get_session, update_session, delete_session, list_sessions_by_period, get_current_session, get_open_session
+from services.sessions import create_session, get_session, update_session, delete_session, list_sessions_by_period, get_current_session, get_open_session
 from services.periods import create_period, delete_period
 from utils.database import db_manager
 from datetime import date as dt_date, timedelta

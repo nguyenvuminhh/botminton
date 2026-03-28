@@ -21,7 +21,7 @@ from services.periods import create_period, delete_period
 from services.sessions import create_session, delete_session
 from services.venues import create_venue, delete_venue
 from services.users import create_user, delete_user
-from services.session_participants import create_participant, delete_participant_by_user_and_session, update_additional_participants
+from services.session_participants import create_participant
 from services.shuttlecock_batches import create_batch, delete_batch
 from utils.database import db_manager
 import logging
@@ -127,7 +127,7 @@ def test_session_cost_calculation():
         assert abs(by_id[USER_2] - expected_u2_total) < 0.01, f"User2 total: expected {expected_u2_total}, got {by_id[USER_2]}"
         assert abs(by_id[USER_3] - expected_u3_total) < 0.01, f"User3 total: expected {expected_u3_total}, got {by_id[USER_3]}"
 
-        print(f"✅ Period report totals:")
+        print("✅ Period report totals:")
         print(f"   user1={by_id[USER_1]:.2f} (expected {expected_u1_total})")
         print(f"   user2={by_id[USER_2]:.2f} (expected {expected_u2_total})")
         print(f"   user3={by_id[USER_3]:.2f} (expected {expected_u3_total})")
