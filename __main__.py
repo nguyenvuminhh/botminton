@@ -7,7 +7,8 @@ from commands.poll import close_poll, handle_poll_answer, open_poll
 from commands.session_mgmt import (
     add_player, add_plus_one, remove_player, remove_plus_one, set_slots, set_venue
 )
-from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_SECRET, WEBHOOK_PORT, ADMIN_USER_ID
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_SECRET, WEBHOOK_PORT, ADMIN_USER_ID, LOG_GROUP_CHAT_ID
+from utils.telegram_log_handler import TelegramLogHandler
 from constants import Commands
 from schemas.metadata import Metadata
 from utils.database import db_manager
@@ -72,9 +73,15 @@ def run():
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
+    if LOG_GROUP_CHAT_ID:
+        tg_handler = TelegramLogHandler(BOT_TOKEN, LOG_GROUP_CHAT_ID, level=logging.WARNING)
+        tg_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
+        logging.getLogger().addHandler(tg_handler)
+        logger.info("Telegram log handler active → chat_id=%s", LOG_GROUP_CHAT_ID)
+
     # Private only — debug + admin config + payment tracking
     register_command(app, Commands.SET_SCHEDULE,    set_schedule,    PRIVATE)
-    register_command(app, Commands.PRINT_GROUP_CHAT_ID, print_group_chat_id, PRIVATE)
+    register_command(app, Commands.PRINT_GROUP_CHAT_ID, print_group_chat_id, filters.ALL)
     register_command(app, Commands.PRINT_USER_ID,       print_user_id,       PRIVATE)
     register_command(app, Commands.TEST_ADMIN,          test_admin,          PRIVATE)
     # Private only — payment tracking
