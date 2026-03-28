@@ -74,7 +74,7 @@ def run():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     if LOG_GROUP_CHAT_ID:
-        tg_handler = TelegramLogHandler(BOT_TOKEN, LOG_GROUP_CHAT_ID, level=logging.WARNING)
+        tg_handler = TelegramLogHandler(BOT_TOKEN, LOG_GROUP_CHAT_ID, level=logging.DEBUG)
         tg_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
         logging.getLogger().addHandler(tg_handler)
         logger.info("Telegram log handler active → chat_id=%s", LOG_GROUP_CHAT_ID)
