@@ -1,1 +1,2 @@
-web: python __main__.py
+web: python backend_main.py
+worker: python __main__.py

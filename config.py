@@ -15,3 +15,6 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 WEBHOOK_PORT   = int(os.environ.get("WEBHOOK_PORT", "8443"))
 
 LOG_GROUP_CHAT_ID = os.environ.get("LOG_GROUP_CHAT_ID")
+
+JWT_SECRET = os.environ.get("JWT_SECRET", "change_me")
+API_PORT   = int(os.environ.get("API_PORT", "8000"))

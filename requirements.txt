@@ -2,3 +2,7 @@ python-telegram-bot[webhooks]
 python-dotenv
 pydantic
 mongoengine
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+python-multipart
