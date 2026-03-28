@@ -32,6 +32,7 @@ Use `@username` for players who have one, or their first name for those who don'
 |---|---|---|
 | `/listvenues` | — | List all registered venues with price per slot |
 | `/addvenue` | `<price> <location> <name>` | Register a new venue (e.g. `/addvenue 10.0 Unisport Unisport student`) |
+| `/setschedule` | `<start> <end> [day]` | Set default session time and day (e.g. `/setschedule 20:30 22:00 fri`). Day accepts `mon`–`sun`, full name, or index (0=Mon). Run with no args to view current schedule. |
 
 ---
 

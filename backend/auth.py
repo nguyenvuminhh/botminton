@@ -2,7 +2,7 @@ import random
 import time
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from jose import jwt
 from pydantic import BaseModel
 
@@ -16,6 +16,20 @@ OTP_EXPIRE_SECONDS = 300  # 5 minutes
 # In-memory OTP store: {otp: expiry_timestamp}
 _otp_store: dict[str, float] = {}
 
+# Rate limiting: {ip: [timestamp, ...]}
+_request_log: dict[str, list[float]] = {}
+_RATE_WINDOW = 60  # seconds
+_MAX_REQUESTS = 5  # per window
+
+
+def _check_rate_limit(ip: str) -> None:
+    now = time.time()
+    timestamps = [t for t in _request_log.get(ip, []) if now - t < _RATE_WINDOW]
+    if len(timestamps) >= _MAX_REQUESTS:
+        raise HTTPException(status_code=429, detail="Too many requests")
+    timestamps.append(now)
+    _request_log[ip] = timestamps
+
 
 def _purge_expired() -> None:
     now = time.time()
@@ -25,7 +39,8 @@ def _purge_expired() -> None:
 
 
 @router.post("/request-otp")
-async def request_otp():
+async def request_otp(request: Request):
+    _check_rate_limit(request.client.host if request.client else "unknown")
     _purge_expired()
 
     otp = f"{random.SystemRandom().randint(0, 999999):06d}"
@@ -50,7 +65,8 @@ class OTPVerify(BaseModel):
 
 
 @router.post("/verify-otp")
-def verify_otp(body: OTPVerify):
+def verify_otp(body: OTPVerify, request: Request):
+    _check_rate_limit(request.client.host if request.client else "unknown")
     _purge_expired()
 
     expiry = _otp_store.pop(body.otp, None)
