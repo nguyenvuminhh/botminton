@@ -43,7 +43,6 @@ ADMIN_USER_ID=          # Your Telegram user ID
 # Webhook — leave blank to run locally with polling
 WEBHOOK_URL=            # Public HTTPS URL of your deployment, e.g. https://mybot.up.railway.app
 WEBHOOK_SECRET=         # Optional random string for request verification
-WEBHOOK_PORT=8443       # Default port; your platform must forward traffic here
 ```
 
 ---
