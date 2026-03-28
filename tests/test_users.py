@@ -20,7 +20,7 @@ def test_users_crud():
         
         # Test data
         test_telegram_id = "987654321"
-        test_telegram_id_2 = config.ADMIN_1_USER_ID
+        test_telegram_id_2 = config.ADMIN_USER_ID
         
         print("\n🧪 Testing Users CRUD Operations")
         print("=" * 50)
