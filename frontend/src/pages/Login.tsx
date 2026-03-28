@@ -21,7 +21,8 @@ export default function Login() {
 
     const botUsername = import.meta.env.VITE_BOT_USERNAME
     if (!botUsername) {
-      console.error('VITE_BOT_USERNAME is not set')
+      document.getElementById('tg-login-container')!.textContent =
+        'Config error: VITE_BOT_USERNAME is not set. Rebuild the frontend.'
       return
     }
 
