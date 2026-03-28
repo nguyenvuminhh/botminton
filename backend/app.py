@@ -48,6 +48,13 @@ def create_app() -> FastAPI:
     # Serve React build in production
     frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
     if os.path.isdir(frontend_dist):
-        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="static")
+        from fastapi.responses import FileResponse
+
+        app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def spa_fallback(full_path: str):
+            index = os.path.join(frontend_dist, "index.html")
+            return FileResponse(index)
 
     return app
