@@ -11,7 +11,7 @@ class UserService:
     """Service class for user CRUD operations"""
 
     @staticmethod
-    def create_user(telegram_id: str, telegram_user_name: Optional[str] = None) -> Optional[Users]:
+    def create_user(telegram_id: str, telegram_user_name: Optional[str] = None, full_name: Optional[str] = None) -> Optional[Users]:
         try:
             is_admin = check_admin(telegram_id)
 
@@ -23,6 +23,7 @@ class UserService:
             user = Users(
                 telegram_id=telegram_id,
                 telegram_user_name=telegram_user_name,
+                full_name=full_name,
                 is_admin=is_admin
             )
             user.save()
@@ -55,6 +56,9 @@ class UserService:
 
             if 'telegram_user_name' in kwargs:
                 user.telegram_user_name = kwargs['telegram_user_name']
+
+            if 'full_name' in kwargs:
+                user.full_name = kwargs['full_name']
 
             user.is_admin = is_admin
 
@@ -115,8 +119,8 @@ class UserService:
 # ✅ Convenience functions
 # ------------------------
 
-def create_user(telegram_id: str, telegram_user_name: Optional[str] = None) -> Optional[Users]:
-    return UserService.create_user(telegram_id, telegram_user_name)
+def create_user(telegram_id: str, telegram_user_name: Optional[str] = None, full_name: Optional[str] = None) -> Optional[Users]:
+    return UserService.create_user(telegram_id, telegram_user_name, full_name)
 
 def get_user(telegram_id: str) -> Optional[Users]:
     return UserService.get_user_by_telegram_id(telegram_id)

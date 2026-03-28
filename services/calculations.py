@@ -114,6 +114,7 @@ class CalculationService:
                 PersonalPeriodMoney(
                     person_id=tid,
                     telegram_user_name=f"@{username}" if username and not username.startswith("@") else (username or tid),
+                    full_name=user.full_name if user else None,  # type: ignore
                     period_money=total,
                 )
             )

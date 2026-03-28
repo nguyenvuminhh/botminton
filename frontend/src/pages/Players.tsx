@@ -5,6 +5,7 @@ interface User {
   id: string
   telegram_id: string
   telegram_user_name: string | null
+  full_name: string | null
   is_admin: boolean
 }
 
@@ -33,12 +34,13 @@ export default function Players() {
       <h2>Players</h2>
       <table style={tableStyle}>
         <thead>
-          <tr>{['Telegram ID', 'Username', 'Admin', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
+          <tr>{['Telegram ID', 'Full Name', 'Username', 'Admin', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
         </thead>
         <tbody>
           {users.map((u) => (
             <tr key={u.id}>
               <td style={tdStyle}>{u.telegram_id}</td>
+              <td style={tdStyle}>{u.full_name ?? '—'}</td>
               <td style={tdStyle}>{u.telegram_user_name ?? '—'}</td>
               <td style={tdStyle}>{u.is_admin ? '✅' : '—'}</td>
               <td style={{ ...tdStyle, display: 'flex', gap: '0.4rem' }}>

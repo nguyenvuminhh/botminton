@@ -13,7 +13,8 @@ def get_money_message(period_money_report: PeriodMoneyReport) -> str:
     message = f"Em gửi tiền sân từ {period_start_date_str} đến {period_end_date_str} ạ\n\n"
 
     for person in period_money_report.personal_period_money:
-        message += f"{person.telegram_user_name} {person.period_money}\n"
+        display_name = person.full_name or person.telegram_user_name
+        message += f"{display_name} {person.period_money}\n"
     return message
 
 def get_react_after_sending_money_message() -> str:

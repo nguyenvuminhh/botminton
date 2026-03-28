@@ -18,6 +18,7 @@ def serialize(u: Users) -> dict:
         "id": str(u.id),
         "telegram_id": u.telegram_id,
         "telegram_user_name": u.telegram_user_name,
+        "full_name": u.full_name,
         "is_admin": u.is_admin,
     }
 

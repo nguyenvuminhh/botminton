@@ -9,10 +9,13 @@ def upsert_user(telegram_user) -> None:
     """Create or update a user record from a Telegram User object."""
     telegram_id = str(telegram_user.id)
     username = telegram_user.username or telegram_user.first_name
+    full_name = telegram_user.first_name
+    if telegram_user.last_name:
+        full_name += f" {telegram_user.last_name}"
     if not get_user(telegram_id):
-        create_user(telegram_id=telegram_id, telegram_user_name=username)
+        create_user(telegram_id=telegram_id, telegram_user_name=username, full_name=full_name)
     else:
-        update_user(telegram_id, telegram_user_name=username, is_admin=check_admin(telegram_id))
+        update_user(telegram_id, telegram_user_name=username, full_name=full_name, is_admin=check_admin(telegram_id))
 
 
 def user_insertion_middleware(func):

@@ -4,6 +4,7 @@ from pydantic import BaseModel, model_validator
 class PersonalPeriodMoney(BaseModel):
     person_id: str
     telegram_user_name: str
+    full_name: str | None = None
     period_money: float
 
     @model_validator(mode='after')
