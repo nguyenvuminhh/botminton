@@ -4,8 +4,6 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
-ARG VITE_BOT_USERNAME
-ENV VITE_BOT_USERNAME=${VITE_BOT_USERNAME}
 RUN npm run build
 
 # Stage 2: Python runtime

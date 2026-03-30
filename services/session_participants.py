@@ -145,9 +145,9 @@ class SessionParticipantService:
         try:
             participant = SessionParticipantService.get_participant_by_user_and_session(user_telegram_id, session_date)
             if not participant:
-                logger.error(f"Participant not found for user {user_telegram_id} in session {session_date}")
+                logger.warning(f"Participant not found for user {user_telegram_id} in session {session_date} (already removed or never joined)")
                 return False
-            
+
             return SessionParticipantService.delete_participant_by_id(str(participant.id))  # type: ignore
 
         except Exception as e:

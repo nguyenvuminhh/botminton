@@ -1,8 +1,12 @@
+import logging
 from functools import wraps
 from telegram import Update
 from telegram.ext import ContextTypes
+from config import LOG_GROUP_CHAT_ID
 from services.users import create_user, get_user, update_user
 from utils.user import check_admin
+
+logger = logging.getLogger(__name__)
 
 
 def upsert_user(telegram_user) -> None:
@@ -48,9 +52,13 @@ def check_admin_middleware(func):
         if db_user.is_admin:
             return await func(update, context)
 
-        await context.bot.send_message(
-            chat_id=chat.id,
-            text="❌ You are not authorized to use this command."
-        )
+        cmd = update.message.text if update.message else "unknown"
+        sender = f"@{user.username}" if user.username else user.first_name
+        logger.warning("Unauthorized command attempt: %s from %s (id=%s)", cmd, sender, user.id)
+        if LOG_GROUP_CHAT_ID:
+            await context.bot.send_message(
+                chat_id=LOG_GROUP_CHAT_ID,
+                text=f"⚠️ Unauthorized command: {cmd}\nFrom: {sender} (id: {user.id})",
+            )
 
     return wrapper

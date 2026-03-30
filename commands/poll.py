@@ -121,9 +121,11 @@ async def open_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     logger.info("open_poll: poll opened for session=%s, auto-close scheduled at %s UTC", session_date_str, close_time)
 
+    close_dotw = close_time.strftime("%A")  # e.g. "Friday"
+    close_ddmm = close_time.strftime("%d/%m")
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=f"✅ Poll opened for {format_to_dd_mm(next_play_day)}. Auto-closes {close_time.strftime('%d/%m %H:%M')} UTC."
+        text=f"✅ Poll opened for {format_to_dd_mm(next_play_day)}.\nPoll will be automatically closed on {close_dotw}, {close_ddmm}."
     )
 
 

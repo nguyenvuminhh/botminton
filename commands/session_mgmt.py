@@ -190,7 +190,7 @@ async def remove_plus_one(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def set_slots(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Usage: /set_slots <float>  — e.g. /set_slots 6.0"""
     if not update.effective_chat or not context.args:
-        await update.message.reply_text("Usage: /set_slots <number>  e.g. /set_slots 6.0")  # type: ignore
+        await update.message.reply_text("Usage: /set_slots <number>  e.g. /set_slots 6.0 (courts × hours)")  # type: ignore
         return
 
     chat_id = update.effective_chat.id
@@ -201,7 +201,7 @@ async def set_slots(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         slots = float(context.args[0])
     except ValueError:
         logger.warning("set_slots: invalid slots value '%s' from user_id=%s", context.args[0], user_id)
-        await context.bot.send_message(chat_id=chat_id, text="❌ Invalid number for slots.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Invalid number for court slots.")
         return
 
     session = get_open_session()
@@ -213,7 +213,7 @@ async def set_slots(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session_date = session.date.isoformat()  # type: ignore
     update_session(session_date, slots=slots)
     logger.info("set_slots: session=%s slots set to %s", session_date, slots)
-    await context.bot.send_message(chat_id=chat_id, text=f"✅ Session {session_date}: slots set to {slots}.")
+    await context.bot.send_message(chat_id=chat_id, text=f"✅ Session {session_date}: court slots set to {slots}.")
 
 
 @check_admin_middleware
@@ -246,8 +246,8 @@ async def set_venue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session_date = session.date.isoformat()  # type: ignore
     update_session(session_date, venue=str(venue.id))  # type: ignore
     update_metadata(default_venue_id=str(venue.id))  # type: ignore
-    logger.info("set_venue: session=%s venue set to '%s' (%s €/slot)", session_date, venue_name, venue.price_per_slot)  # type: ignore
+    logger.info("set_venue: session=%s venue set to '%s' (%s €/court slot)", session_date, venue_name, venue.price_per_slot)  # type: ignore
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"✅ Session {session_date}: venue set to '{venue_name}' ({venue.price_per_slot} €/slot). Saved as default."  # type: ignore
+        text=f"✅ Session {session_date}: venue set to '{venue_name}' ({venue.price_per_slot} €/court slot). Saved as default."  # type: ignore
     )

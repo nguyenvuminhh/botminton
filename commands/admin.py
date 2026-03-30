@@ -36,7 +36,7 @@ async def list_venues(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     lines = ["Venues:"]
     for v in venues:
         location = f" ({v.location})" if v.location else ""  # type: ignore
-        lines.append(f"• {v.name}{location} — {v.price_per_slot} €/slot")  # type: ignore
+        lines.append(f"• {v.name}{location} — {v.price_per_slot} €/court slot")  # type: ignore
     await context.bot.send_message(chat_id=update.effective_chat.id, text="\n".join(lines))
 
 
@@ -77,7 +77,7 @@ async def add_venue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.info("add_venue: created venue name=%r price=%s", name, price)
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"✅ Venue '{name}' at {location} ({price} €/slot) added."
+            text=f"✅ Venue '{name}' at {location} ({price} €/court slot) added."
         )
     else:
         logger.error("add_venue: failed to create venue name=%r (already exists?)", name)
