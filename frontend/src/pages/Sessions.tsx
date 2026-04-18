@@ -16,6 +16,12 @@ interface Participant {
   user_name: string | null
   additional_participants: number
 }
+interface User {
+  id: string
+  telegram_id: string
+  telegram_user_name: string | null
+  full_name: string | null
+}
 
 export default function Sessions() {
   const [periods, setPeriods] = useState<Period[]>([])
@@ -23,14 +29,20 @@ export default function Sessions() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
+  const [users, setUsers] = useState<User[]>([])
 
   // new session form
   const [newDate, setNewDate] = useState('')
   const [newVenue, setNewVenue] = useState('')
   const [newSlots, setNewSlots] = useState('')
 
+  // add player form
+  const [newPlayerTelegramId, setNewPlayerTelegramId] = useState('')
+  const [newPlayerAdditional, setNewPlayerAdditional] = useState('0')
+
   useEffect(() => {
     api.get<Period[]>('/periods').then((r) => setPeriods(r.data))
+    api.get<User[]>('/users').then((r) => setUsers(r.data))
   }, [])
 
   useEffect(() => {
@@ -67,6 +79,24 @@ export default function Sessions() {
   async function handleRemoveParticipant(id: string) {
     await api.delete(`/participants/${id}`)
     setParticipants((prev) => prev.filter((p) => p.id !== id))
+  }
+
+  async function handleAddParticipant(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedSession || !newPlayerTelegramId) return
+    await api.post('/participants', {
+      user_telegram_id: newPlayerTelegramId,
+      session_date: selectedSession.date,
+      additional_participants: parseInt(newPlayerAdditional) || 0,
+    })
+    setNewPlayerTelegramId('')
+    setNewPlayerAdditional('0')
+    const r = await api.get<Participant[]>(`/participants?session_date=${selectedSession.date}`)
+    setParticipants(r.data)
+  }
+
+  function userLabel(u: User): string {
+    return u.full_name || u.telegram_user_name || u.telegram_id
   }
 
   return (
@@ -120,6 +150,30 @@ export default function Sessions() {
         {selectedSession && (
           <div style={{ width: 300 }}>
             <h4 style={{ marginBottom: '0.5rem' }}>Participants — {selectedSession.date}</h4>
+            <form onSubmit={handleAddParticipant} style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+              <select
+                value={newPlayerTelegramId}
+                onChange={(e) => setNewPlayerTelegramId(e.target.value)}
+                style={{ ...inputStyle, flex: 1, minWidth: 120 }}
+              >
+                <option value="">— add player —</option>
+                {users
+                  .filter((u) => !participants.some((p) => p.user_telegram_id === u.telegram_id))
+                  .map((u) => (
+                    <option key={u.telegram_id} value={u.telegram_id}>{userLabel(u)}</option>
+                  ))}
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={newPlayerAdditional}
+                onChange={(e) => setNewPlayerAdditional(e.target.value)}
+                style={{ ...inputStyle, width: 60 }}
+                title="Plus-ones"
+              />
+              <button type="submit" style={btnStyle} disabled={!newPlayerTelegramId}>Add</button>
+            </form>
             <table style={tableStyle}>
               <thead>
                 <tr>{['User', '+', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>

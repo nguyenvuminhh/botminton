@@ -8,6 +8,7 @@ from telegram import Update
 
 from backend.auth import router as auth_router
 from backend.routes import (
+    metadata,
     participants,
     payments,
     periods,
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(venues.router, prefix="/api/venues", tags=["venues"])
     app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
     app.include_router(shuttlecocks.router, prefix="/api/shuttlecocks", tags=["shuttlecocks"])
+    app.include_router(metadata.router, prefix="/api/metadata", tags=["metadata"])
 
     # Serve React build in production
     frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

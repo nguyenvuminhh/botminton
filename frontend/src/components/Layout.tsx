@@ -10,6 +10,7 @@ const navItems = [
   { to: '/payments', label: 'Payments' },
   { to: '/venues', label: 'Venues' },
   { to: '/shuttlecocks', label: 'Shuttlecocks' },
+  { to: '/settings', label: 'Settings' },
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {

@@ -9,6 +9,7 @@ import Players from './pages/Players'
 import Payments from './pages/Payments'
 import Venues from './pages/Venues'
 import Shuttlecocks from './pages/Shuttlecocks'
+import Settings from './pages/Settings'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth()
@@ -34,6 +35,7 @@ export default function App() {
                     <Route path="/payments" element={<Payments />} />
                     <Route path="/venues" element={<Venues />} />
                     <Route path="/shuttlecocks" element={<Shuttlecocks />} />
+                    <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>
               </PrivateRoute>
