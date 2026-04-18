@@ -8,11 +8,44 @@ interface Period {
   total_money: number | null
 }
 
+interface ReportEntry {
+  person_id: string
+  telegram_user_name: string
+  full_name: string | null
+  period_money: number
+}
+
+interface Report {
+  period_start_date: string
+  period_end_date: string
+  total_period_money: number
+  personal_period_money: ReportEntry[]
+}
+
+function todayISO(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
+function tomorrowISO(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
 export default function Periods() {
   const [periods, setPeriods] = useState<Period[]>([])
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [error, setError] = useState('')
+
+  // close-preview modal state
+  const [previewPeriod, setPreviewPeriod] = useState<Period | null>(null)
+  const [report, setReport] = useState<Report | null>(null)
+  const [reportLoading, setReportLoading] = useState(false)
+  const [closeEndDate, setCloseEndDate] = useState('')
+  const [newStartDate, setNewStartDate] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [modalError, setModalError] = useState('')
 
   function load() {
     api.get<Period[]>('/periods').then((r) => setPeriods(r.data))
@@ -33,10 +66,45 @@ export default function Periods() {
   }
 
   async function handleClose(p: Period) {
-    const endDateInput = prompt('End date (YYYY-MM-DD):', new Date().toISOString().split('T')[0])
-    if (!endDateInput) return
-    await api.put(`/periods/${p.start_date}`, { end_date: endDateInput })
-    load()
+    setPreviewPeriod(p)
+    setReport(null)
+    setModalError('')
+    setCloseEndDate(todayISO())
+    setNewStartDate(tomorrowISO())
+    setReportLoading(true)
+    try {
+      const r = await api.get<Report>(`/payments/report/${p.start_date}`)
+      setReport(r.data)
+    } catch {
+      setReport({ period_start_date: p.start_date, period_end_date: todayISO(), total_period_money: 0, personal_period_money: [] })
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
+  function closeModal() {
+    setPreviewPeriod(null)
+    setReport(null)
+    setModalError('')
+  }
+
+  async function handleFinalize() {
+    if (!previewPeriod) return
+    setSubmitting(true)
+    setModalError('')
+    try {
+      await api.post(`/periods/${previewPeriod.start_date}/finalize`, {
+        end_date: closeEndDate,
+        new_period_start_date: newStartDate,
+      })
+      closeModal()
+      load()
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setModalError(msg || 'Failed to finalize period')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   async function handleDelete(startDate: string) {
@@ -78,6 +146,77 @@ export default function Periods() {
           ))}
         </tbody>
       </table>
+
+      {previewPeriod && (
+        <div
+          onClick={closeModal}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 8, padding: '1.5rem',
+              width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+            }}
+          >
+            <h3 style={{ marginTop: 0 }}>Close period {previewPeriod.start_date}</h3>
+
+            {reportLoading && <p style={{ color: '#64748b' }}>Calculating report…</p>}
+
+            {report && !reportLoading && (
+              <div style={{ marginBottom: '1rem' }}>
+                {report.personal_period_money.length === 0 ? (
+                  <p style={{ color: '#64748b', fontSize: 14 }}>No participants in this period — nothing to charge.</p>
+                ) : (
+                  <table style={tableStyle}>
+                    <thead>
+                      <tr>{['Player', 'Amount'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {report.personal_period_money.map((e) => (
+                        <tr key={e.person_id}>
+                          <td style={tdStyle}>{e.full_name || e.telegram_user_name}</td>
+                          <td style={tdStyle}>€{e.period_money.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      <tr>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>Total</td>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>€{report.total_period_money.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 13, color: '#475569' }}>End date
+                <input type="date" value={closeEndDate} onChange={(e) => setCloseEndDate(e.target.value)} style={inputStyle} />
+              </label>
+              <label style={{ fontSize: 13, color: '#475569' }}>New period start
+                <input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} style={inputStyle} />
+              </label>
+            </div>
+
+            {modalError && <p style={{ color: '#ef4444', fontSize: 14 }}>{modalError}</p>}
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button onClick={closeModal} style={{ ...btnStyle, background: '#94a3b8' }} disabled={submitting}>Cancel</button>
+              <button
+                onClick={handleFinalize}
+                style={btnStyle}
+                disabled={submitting || reportLoading || !closeEndDate || !newStartDate}
+              >
+                {submitting ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

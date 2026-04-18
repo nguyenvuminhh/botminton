@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 from backend.deps import require_admin
 from schemas.periods import Periods
+from services.calculations import calculate_period_report
+from services.period_moneys import upsert_period_money
 from services.periods import (
     create_period,
     delete_period,
@@ -33,6 +35,11 @@ class CreatePeriodBody(BaseModel):
 class UpdatePeriodBody(BaseModel):
     end_date: str | None = None
     total_money: int | None = None
+
+
+class FinalizePeriodBody(BaseModel):
+    end_date: str
+    new_period_start_date: str
 
 
 @router.get("")
@@ -77,3 +84,30 @@ def edit_period(start_date: str, body: UpdatePeriodBody, _: str = Depends(requir
 def remove_period(start_date: str, _: str = Depends(require_admin)):
     if not delete_period(start_date):
         raise HTTPException(status_code=404, detail="Period not found")
+
+
+@router.post("/{start_date}/finalize")
+def finalize_period(start_date: str, body: FinalizePeriodBody, _: str = Depends(require_admin)):
+    report = calculate_period_report(start_date)
+    if not report:
+        raise HTTPException(status_code=404, detail="Period not found or report unavailable")
+
+    for entry in report.personal_period_money:
+        upsert_period_money(start_date, entry.person_id, entry.period_money)
+
+    closed = update_period(start_date, end_date=body.end_date)
+    if not closed:
+        raise HTTPException(status_code=404, detail="Failed to close period")
+
+    new_period = create_period(body.new_period_start_date)
+    if not new_period:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Period closed, but could not create new period starting {body.new_period_start_date} (already exists?)",
+        )
+
+    return {
+        "closed_period": serialize(closed),
+        "new_period": serialize(new_period),
+        "entries_upserted": len(report.personal_period_money),
+    }
