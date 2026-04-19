@@ -64,22 +64,18 @@ export default function PeriodDetail() {
   const [report, setReport] = useState<Report | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
 
-  // Session add form
   const [newSessionDate, setNewSessionDate] = useState('')
   const [newSessionVenue, setNewSessionVenue] = useState('')
   const [newSessionSlots, setNewSessionSlots] = useState('')
 
-  // Selected session + participants panel
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [newPlayerTelegramId, setNewPlayerTelegramId] = useState('')
   const [newPlayerAdditional, setNewPlayerAdditional] = useState('0')
 
-  // Shuttlecock use form
   const [useBatchId, setUseBatchId] = useState('')
   const [useTubes, setUseTubes] = useState('1')
 
-  // Close-period modal
   const [closeOpen, setCloseOpen] = useState(false)
   const [closeEndDate, setCloseEndDate] = useState('')
   const [newStartDate, setNewStartDate] = useState('')
@@ -234,232 +230,318 @@ export default function PeriodDetail() {
 
   function userLabel(u: User) { return u.full_name || u.telegram_user_name || u.telegram_id }
 
-  if (!period) return <p>Loading…</p>
+  if (!period) return (
+    <>
+      <div className="page-header"><h1>Period</h1></div>
+      <div className="card empty-state">Loading…</div>
+    </>
+  )
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId) || null
   const availableBatches = batches.filter((b) => b.remaining > 0)
   const totalMoney = report?.total_period_money ?? 0
+  const shuttlecockTotal = uses.reduce((a, u) => a + u.price_each * u.tubes_used, 0)
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        <button onClick={() => navigate('/periods')} style={{ ...btnStyle, background: '#94a3b8' }}>← Back</button>
-        <h2 style={{ margin: 0 }}>
-          Period {period.start_date} → {period.end_date ?? <em style={{ color: '#94a3b8' }}>open</em>}
-        </h2>
-        <span style={{ marginLeft: 'auto', color: '#64748b' }}>{closed ? 'Closed' : 'Open'}</span>
-        <button onClick={handleDeletePeriod} style={{ ...btnStyle, background: '#ef4444' }}>Delete period</button>
+    <>
+      <div className="page-header">
+        <button onClick={() => navigate('/periods')} className="btn btn-ghost btn-sm">← Back</button>
+        <div>
+          <h1 style={{ marginBottom: 2 }}>Period {period.start_date}</h1>
+          <span className="page-subtitle">
+            {period.end_date ? `Ended ${period.end_date}` : 'Currently open'}
+          </span>
+        </div>
+        <div className="page-header-actions">
+          <span className={'pill ' + (closed ? 'pill-closed' : 'pill-open')}>
+            {closed ? 'Closed' : 'Open'}
+          </span>
+          <button onClick={handleDeletePeriod} className="btn btn-danger btn-sm">Delete</button>
+        </div>
       </div>
 
-      {/* Sessions section */}
-      <section style={sectionStyle}>
-        <h3 style={h3Style}>Sessions</h3>
-        <form onSubmit={handleAddSession} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-          <input type="date" value={newSessionDate} onChange={(e) => setNewSessionDate(e.target.value)} required style={inputStyle} />
-          <select value={newSessionVenue} onChange={(e) => setNewSessionVenue(e.target.value)} style={inputStyle}>
-            <option value="">— venue —</option>
-            {venues.map((v) => <option key={v.id} value={v.id}>{v.name} (€{v.price_per_slot}/slot)</option>)}
-          </select>
-          <input type="number" step="0.5" min="0" placeholder="Slots" value={newSessionSlots} onChange={(e) => setNewSessionSlots(e.target.value)} style={{ ...inputStyle, width: 90 }} />
-          <button type="submit" style={btnStyle}>Add session</button>
+      {/* Sessions */}
+      <div className="card">
+        <div className="card-header">
+          <h3>Sessions</h3>
+          <span className="chip">{sessions.length} session{sessions.length === 1 ? '' : 's'}</span>
+        </div>
+
+        <form onSubmit={handleAddSession} className="form-row" style={{ marginBottom: 18 }}>
+          <div className="field">
+            <label className="field-label">Date</label>
+            <input type="date" value={newSessionDate} onChange={(e) => setNewSessionDate(e.target.value)} required className="input" />
+          </div>
+          <div className="field" style={{ minWidth: 200 }}>
+            <label className="field-label">Venue</label>
+            <select className="select" value={newSessionVenue} onChange={(e) => setNewSessionVenue(e.target.value)}>
+              <option value="">— none —</option>
+              {venues.map((v) => <option key={v.id} value={v.id}>{v.name} (€{v.price_per_slot}/slot)</option>)}
+            </select>
+          </div>
+          <div className="field" style={{ minWidth: 100 }}>
+            <label className="field-label">Slots</label>
+            <input type="number" step="0.5" min="0" placeholder="0" value={newSessionSlots} onChange={(e) => setNewSessionSlots(e.target.value)} className="input" />
+          </div>
+          <button type="submit" className="btn btn-primary">Add session</button>
         </form>
 
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
-          <table style={{ ...tableStyle, flex: 1 }}>
-            <thead>
-              <tr>{['Date', 'Venue', 'People', 'Slots', 'Money', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {sessions.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => setSelectedSessionId(s.id === selectedSessionId ? null : s.id)}
-                  style={{ cursor: 'pointer', background: s.id === selectedSessionId ? '#eff6ff' : undefined }}
-                >
-                  <td style={tdStyle}>{s.date}</td>
-                  <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
-                    {closed ? (
-                      s.venue_name ?? '—'
-                    ) : (
-                      <select
-                        value={venues.find((v) => v.name === s.venue_name)?.id ?? ''}
-                        onChange={(e) => handleUpdateVenue(s, e.target.value)}
-                        style={{ ...inputStyle, marginTop: 0, padding: '0.25rem 0.4rem' }}
-                      >
-                        <option value="">—</option>
-                        {venues.map((v) => (
-                          <option key={v.id} value={v.id}>{v.name}</option>
-                        ))}
-                      </select>
-                    )}
-                  </td>
-                  <td style={tdStyle}>{s.people_count}</td>
-                  <td style={tdStyle}>{s.slots}</td>
-                  <td style={tdStyle}>€{s.total_money.toFixed(2)}</td>
-                  <td style={{ ...tdStyle, display: 'flex', gap: '0.3rem' }}>
-                    <button onClick={(e) => { e.stopPropagation(); handleUpdateSlots(s) }} style={btnStyle}>Slots</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSession(s) }} style={{ ...btnStyle, background: '#ef4444' }}>Del</button>
-                  </td>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div className="table-wrap" style={{ flex: '1 1 460px', minWidth: 0 }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Venue</th>
+                  <th className="cell-num">People</th>
+                  <th className="cell-num">Slots</th>
+                  <th className="cell-num">Money</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sessions.map((s) => (
+                  <tr
+                    key={s.id}
+                    onClick={() => setSelectedSessionId(s.id === selectedSessionId ? null : s.id)}
+                    className={'row-clickable' + (s.id === selectedSessionId ? ' row-selected' : '')}
+                  >
+                    <td>{s.date}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      {closed ? (
+                        s.venue_name ?? <span className="muted">—</span>
+                      ) : (
+                        <select
+                          value={venues.find((v) => v.name === s.venue_name)?.id ?? ''}
+                          onChange={(e) => handleUpdateVenue(s, e.target.value)}
+                          className="select"
+                          style={{ padding: '5px 28px 5px 10px', fontSize: 13 }}
+                        >
+                          <option value="">—</option>
+                          {venues.map((v) => (
+                            <option key={v.id} value={v.id}>{v.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                    <td className="cell-num">{s.people_count}</td>
+                    <td className="cell-num">{s.slots}</td>
+                    <td className="cell-num cell-money">€{s.total_money.toFixed(2)}</td>
+                    <td className="cell-actions">
+                      <button onClick={(e) => { e.stopPropagation(); handleUpdateSlots(s) }} className="btn btn-sm btn-ghost">Slots</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteSession(s) }} className="btn btn-sm btn-danger">Del</button>
+                    </td>
+                  </tr>
+                ))}
+                {sessions.length === 0 && (
+                  <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 28 }}>No sessions yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {selectedSession && (
-            <div style={{ width: 320 }}>
-              <h4 style={{ marginBottom: '0.5rem' }}>Participants — {selectedSession.date}</h4>
-              <form onSubmit={handleAddParticipant} style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                <select value={newPlayerTelegramId} onChange={(e) => setNewPlayerTelegramId(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 140 }}>
+            <div style={{ width: 340, flexShrink: 0 }}>
+              <h4 style={{ marginBottom: 10 }}>Participants · {selectedSession.date}</h4>
+              <form onSubmit={handleAddParticipant} className="form-row" style={{ marginBottom: 10 }}>
+                <select
+                  className="select"
+                  value={newPlayerTelegramId}
+                  onChange={(e) => setNewPlayerTelegramId(e.target.value)}
+                  style={{ flex: 1, minWidth: 140 }}
+                >
                   <option value="">— add player —</option>
                   {users
                     .filter((u) => !participants.some((p) => p.user_telegram_id === u.telegram_id))
                     .map((u) => <option key={u.telegram_id} value={u.telegram_id}>{userLabel(u)}</option>)}
                 </select>
-                <input type="number" min="0" step="1" value={newPlayerAdditional} onChange={(e) => setNewPlayerAdditional(e.target.value)} style={{ ...inputStyle, width: 60 }} title="Plus-ones" />
-                <button type="submit" style={btnStyle} disabled={!newPlayerTelegramId}>Add</button>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={newPlayerAdditional}
+                  onChange={(e) => setNewPlayerAdditional(e.target.value)}
+                  className="input"
+                  style={{ width: 64 }}
+                  title="Plus-ones"
+                />
+                <button type="submit" className="btn btn-primary btn-sm" disabled={!newPlayerTelegramId}>Add</button>
               </form>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>{['User', '+', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {participants.map((p) => (
-                    <tr key={p.id}>
-                      <td style={tdStyle}>{p.user_name ?? p.user_telegram_id}</td>
-                      <td style={tdStyle}>{p.additional_participants}</td>
-                      <td style={tdStyle}>
-                        <button onClick={() => handleRemoveParticipant(p.id)} style={{ ...btnStyle, background: '#ef4444', padding: '0.2rem 0.5rem' }}>×</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr><th>User</th><th className="cell-num">+</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {participants.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.user_name ?? p.user_telegram_id}</td>
+                        <td className="cell-num">{p.additional_participants}</td>
+                        <td className="cell-actions">
+                          <button onClick={() => handleRemoveParticipant(p.id)} className="btn btn-sm btn-danger">×</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {participants.length === 0 && (
+                      <tr><td colSpan={3} className="muted" style={{ textAlign: 'center', padding: 20 }}>No participants.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
-      </section>
+      </div>
 
       {/* Shuttlecock uses */}
-      <section style={sectionStyle}>
-        <h3 style={h3Style}>Shuttlecocks used in this period</h3>
-        <form onSubmit={handleAddUse} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-          <select value={useBatchId} onChange={(e) => setUseBatchId(e.target.value)} style={{ ...inputStyle, minWidth: 280 }}>
-            <option value="">— pick batch —</option>
-            {availableBatches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.purchase_date} — €{b.price_each.toFixed(2)}/tube (remaining: {b.remaining})
-              </option>
-            ))}
-          </select>
-          <input type="number" min="1" step="1" value={useTubes} onChange={(e) => setUseTubes(e.target.value)} style={{ ...inputStyle, width: 80 }} />
-          <button type="submit" style={btnStyle} disabled={!useBatchId}>Consume</button>
+      <div className="card">
+        <div className="card-header">
+          <h3>Shuttlecocks used</h3>
+          <span className="chip">Subtotal €{shuttlecockTotal.toFixed(2)}</span>
+        </div>
+        <form onSubmit={handleAddUse} className="form-row" style={{ marginBottom: 16 }}>
+          <div className="field" style={{ minWidth: 280, flex: 1 }}>
+            <label className="field-label">Batch</label>
+            <select className="select" value={useBatchId} onChange={(e) => setUseBatchId(e.target.value)}>
+              <option value="">— pick batch —</option>
+              {availableBatches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.purchase_date} — €{b.price_each.toFixed(2)}/tube (remaining: {b.remaining})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field" style={{ minWidth: 90 }}>
+            <label className="field-label">Tubes</label>
+            <input type="number" min="1" step="1" value={useTubes} onChange={(e) => setUseTubes(e.target.value)} className="input" />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={!useBatchId}>Consume</button>
         </form>
-        <table style={tableStyle}>
-          <thead>
-            <tr>{['Purchase date', '€/tube', 'Tubes used', 'Subtotal', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {uses.map((u) => (
-              <tr key={u.id}>
-                <td style={tdStyle}>{u.purchase_date}</td>
-                <td style={tdStyle}>€{u.price_each.toFixed(2)}</td>
-                <td style={tdStyle}>{u.tubes_used}</td>
-                <td style={tdStyle}>€{(u.price_each * u.tubes_used).toFixed(2)}</td>
-                <td style={tdStyle}>
-                  <button onClick={() => handleDeleteUse(u)} style={{ ...btnStyle, background: '#ef4444' }}>Remove</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {/* Money split preview */}
-      <section style={sectionStyle}>
-        <h3 style={h3Style}>
-          Money split {closed ? '(final)' : '(preview)'} — Total: €{totalMoney.toFixed(2)}
-        </h3>
-
-        {closed ? (
-          <table style={tableStyle}>
+        <div className="table-wrap">
+          <table className="table">
             <thead>
-              <tr>{['Player', 'Amount', 'Paid'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
+              <tr>
+                <th>Purchase date</th>
+                <th className="cell-num">€/tube</th>
+                <th className="cell-num">Tubes used</th>
+                <th className="cell-num">Subtotal</th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
-              {payments.map((p) => (
-                <tr key={p.id}>
-                  <td style={tdStyle}>{p.user_name ?? p.user_telegram_id}</td>
-                  <td style={tdStyle}>€{p.amount.toFixed(2)}</td>
-                  <td style={tdStyle}>
-                    <label style={{ cursor: 'pointer' }}>
-                      <input type="checkbox" checked={p.has_paid} onChange={() => handleTogglePaid(p)} />
-                      <span style={{ marginLeft: 6, color: p.has_paid ? '#22c55e' : '#64748b' }}>
-                        {p.has_paid ? 'Paid' : 'Unpaid'}
-                      </span>
-                    </label>
+              {uses.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.purchase_date}</td>
+                  <td className="cell-num">€{u.price_each.toFixed(2)}</td>
+                  <td className="cell-num">{u.tubes_used}</td>
+                  <td className="cell-num cell-money">€{(u.price_each * u.tubes_used).toFixed(2)}</td>
+                  <td className="cell-actions">
+                    <button onClick={() => handleDeleteUse(u)} className="btn btn-sm btn-danger">Remove</button>
                   </td>
                 </tr>
               ))}
+              {uses.length === 0 && (
+                <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 24 }}>No shuttlecocks recorded.</td></tr>
+              )}
             </tbody>
           </table>
-        ) : (
-          <>
-            <table style={tableStyle}>
+        </div>
+      </div>
+
+      {/* Money split */}
+      <div className="card">
+        <div className="card-header">
+          <h3>Money split {closed ? '(final)' : '(preview)'}</h3>
+          <span className="pill pill-accent">Total €{totalMoney.toFixed(2)}</span>
+          {!closed && (
+            <div className="card-header-actions">
+              <button onClick={openCloseModal} className="btn btn-primary">Close period →</button>
+            </div>
+          )}
+        </div>
+
+        {closed ? (
+          <div className="table-wrap">
+            <table className="table">
               <thead>
-                <tr>{['Player', 'Amount'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                <tr>
+                  <th>Player</th>
+                  <th className="cell-num">Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.user_name ?? p.user_telegram_id}</td>
+                    <td className="cell-num cell-money">€{p.amount.toFixed(2)}</td>
+                    <td>
+                      <label className="checkbox-row">
+                        <input type="checkbox" checked={p.has_paid} onChange={() => handleTogglePaid(p)} />
+                        <span className={'pill ' + (p.has_paid ? 'pill-paid' : 'pill-unpaid')}>
+                          {p.has_paid ? 'Paid' : 'Unpaid'}
+                        </span>
+                      </label>
+                    </td>
+                  </tr>
+                ))}
+                {payments.length === 0 && (
+                  <tr><td colSpan={3} className="muted" style={{ textAlign: 'center', padding: 24 }}>No payments.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr><th>Player</th><th className="cell-num">Amount</th></tr>
               </thead>
               <tbody>
                 {(report?.personal_period_money ?? []).map((e) => (
                   <tr key={e.person_id}>
-                    <td style={tdStyle}>{e.full_name || e.telegram_user_name}</td>
-                    <td style={tdStyle}>€{e.period_money.toFixed(2)}</td>
+                    <td>{e.full_name || e.telegram_user_name}</td>
+                    <td className="cell-num cell-money">€{e.period_money.toFixed(2)}</td>
                   </tr>
                 ))}
+                {(!report || report.personal_period_money.length === 0) && (
+                  <tr><td colSpan={2} className="muted" style={{ textAlign: 'center', padding: 24 }}>No amounts yet.</td></tr>
+                )}
               </tbody>
             </table>
-            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={openCloseModal} style={btnStyle}>Close period</button>
-            </div>
-          </>
+          </div>
         )}
-      </section>
+      </div>
 
       {closeOpen && (
-        <div onClick={() => !submitting && setCloseOpen(false)} style={overlayStyle}>
-          <div onClick={(e) => e.stopPropagation()} style={modalStyle}>
-            <h3 style={{ marginTop: 0 }}>Close period {startDate}</h3>
-            <p style={{ color: '#64748b', fontSize: 14 }}>
-              This will register €{totalMoney.toFixed(2)} across {report?.personal_period_money.length ?? 0} player(s),
+        <div onClick={() => !submitting && setCloseOpen(false)} className="modal-overlay">
+          <div onClick={(e) => e.stopPropagation()} className="modal">
+            <h3>Close period {startDate}</h3>
+            <p className="muted text-small" style={{ marginBottom: 16 }}>
+              This will register <strong>€{totalMoney.toFixed(2)}</strong> across{' '}
+              <strong>{report?.personal_period_money.length ?? 0}</strong> player(s),
               set the end date, and open a new period.
             </p>
-            <div style={{ display: 'flex', gap: '1rem', margin: '1rem 0', flexWrap: 'wrap' }}>
-              <label style={{ fontSize: 13, color: '#475569' }}>End date
-                <input type="date" value={closeEndDate} onChange={(e) => setCloseEndDate(e.target.value)} style={inputStyle} />
-              </label>
-              <label style={{ fontSize: 13, color: '#475569' }}>New period start
-                <input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} style={inputStyle} />
-              </label>
+            <div className="row" style={{ marginBottom: 16 }}>
+              <div className="field">
+                <label className="field-label">End date</label>
+                <input type="date" value={closeEndDate} onChange={(e) => setCloseEndDate(e.target.value)} className="input" />
+              </div>
+              <div className="field">
+                <label className="field-label">New period start</label>
+                <input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} className="input" />
+              </div>
             </div>
-            {modalError && <p style={{ color: '#ef4444', fontSize: 14 }}>{modalError}</p>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button onClick={() => setCloseOpen(false)} disabled={submitting} style={{ ...btnStyle, background: '#94a3b8' }}>Cancel</button>
-              <button onClick={handleFinalize} disabled={submitting || !closeEndDate || !newStartDate} style={btnStyle}>
-                {submitting ? 'Sending…' : 'Send'}
+            {modalError && <div className="error-banner">{modalError}</div>}
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <button onClick={() => setCloseOpen(false)} disabled={submitting} className="btn btn-ghost">Cancel</button>
+              <button onClick={handleFinalize} disabled={submitting || !closeEndDate || !newStartDate} className="btn btn-primary">
+                {submitting ? 'Sending…' : 'Confirm & send'}
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
-
-const sectionStyle: React.CSSProperties = { background: '#fff', borderRadius: 8, padding: '1.25rem', marginBottom: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-const h3Style: React.CSSProperties = { marginTop: 0, marginBottom: '1rem', fontSize: 16 }
-const inputStyle: React.CSSProperties = { display: 'block', marginTop: 4, padding: '0.4rem 0.6rem', borderRadius: 4, border: '1px solid #cbd5e1', fontSize: 14 }
-const btnStyle: React.CSSProperties = { padding: '0.4rem 0.8rem', borderRadius: 4, border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: 14 }
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', background: '#fff' }
-const thStyle: React.CSSProperties = { textAlign: 'left', padding: '0.6rem 0.8rem', background: '#f1f5f9', fontSize: 13, color: '#475569' }
-const tdStyle: React.CSSProperties = { padding: '0.5rem 0.8rem', borderTop: '1px solid #f1f5f9', fontSize: 14 }
-const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }
-const modalStyle: React.CSSProperties = { background: '#fff', borderRadius: 8, padding: '1.5rem', width: '100%', maxWidth: 480, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }

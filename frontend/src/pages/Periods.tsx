@@ -34,41 +34,69 @@ export default function Periods() {
   }
 
   return (
-    <div>
-      <h2>Periods</h2>
-      <form onSubmit={handleAdd} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', alignItems: 'flex-end' }}>
-        <label style={{ fontSize: 13, color: '#475569' }}>Start date
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required style={inputStyle} />
-        </label>
-        <button type="submit" style={btnStyle}>Add period</button>
-      </form>
-      {error && <p style={{ color: '#ef4444' }}>{error}</p>}
+    <>
+      <div className="page-header">
+        <h1>Periods</h1>
+        <span className="page-subtitle">{periods.length} period{periods.length === 1 ? '' : 's'}</span>
+      </div>
 
-      <table style={tableStyle}>
-        <thead>
-          <tr>{['Start', 'End', 'Total €', 'Status'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {periods.map((p) => (
-            <tr
-              key={p.id}
-              onClick={() => navigate(`/periods/${p.start_date}`)}
-              style={{ cursor: 'pointer' }}
-            >
-              <td style={tdStyle}>{p.start_date}</td>
-              <td style={tdStyle}>{p.end_date ?? <em style={{ color: '#94a3b8' }}>open</em>}</td>
-              <td style={tdStyle}>{p.total_money != null ? `€${p.total_money}` : '—'}</td>
-              <td style={tdStyle}>{p.end_date ? 'Closed' : 'Open'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+      <div className="card">
+        <div className="card-header">
+          <h3>New period</h3>
+        </div>
+        <form onSubmit={handleAdd} className="form-row">
+          <div className="field">
+            <label className="field-label">Start date</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+              className="input"
+            />
+          </div>
+          <button type="submit" className="btn btn-primary">Add period</button>
+        </form>
+        {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      </div>
+
+      <div className="card" style={{ padding: 0 }}>
+        <div className="table-wrap" style={{ border: 'none', borderRadius: 'inherit' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Start</th>
+                <th>End</th>
+                <th className="cell-num">Total</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {periods.map((p) => (
+                <tr
+                  key={p.id}
+                  onClick={() => navigate(`/periods/${p.start_date}`)}
+                  className="row-clickable"
+                >
+                  <td>{p.start_date}</td>
+                  <td>{p.end_date ?? <span className="muted">—</span>}</td>
+                  <td className="cell-num cell-money">
+                    {p.total_money != null ? `€${p.total_money}` : <span className="muted">—</span>}
+                  </td>
+                  <td>
+                    <span className={'pill ' + (p.end_date ? 'pill-closed' : 'pill-open')}>
+                      {p.end_date ? 'Closed' : 'Open'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {periods.length === 0 && (
+                <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 32 }}>No periods yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   )
 }
-
-const inputStyle: React.CSSProperties = { display: 'block', marginTop: 4, padding: '0.4rem 0.6rem', borderRadius: 4, border: '1px solid #cbd5e1', fontSize: 14 }
-const btnStyle: React.CSSProperties = { padding: '0.4rem 0.8rem', borderRadius: 4, border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: 14 }
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-const thStyle: React.CSSProperties = { textAlign: 'left', padding: '0.75rem 1rem', background: '#f1f5f9', fontSize: 13, color: '#475569' }
-const tdStyle: React.CSSProperties = { padding: '0.75rem 1rem', borderTop: '1px solid #f1f5f9', fontSize: 14 }

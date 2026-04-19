@@ -3,10 +3,10 @@ import { useAuth } from '../auth'
 import type { ReactNode } from 'react'
 
 const navItems = [
-  { to: '/', label: 'Home' },
-  { to: '/periods', label: 'Periods' },
-  { to: '/shuttlecocks', label: 'Shuttlecocks' },
-  { to: '/settings', label: 'Settings' },
+  { to: '/', label: 'Home', glyph: '🏠' },
+  { to: '/periods', label: 'Periods', glyph: '🗓️' },
+  { to: '/shuttlecocks', label: 'Shuttlecocks', glyph: '🏸' },
+  { to: '/settings', label: 'Settings', glyph: '⚙️' },
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -19,52 +19,35 @@ export default function Layout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      <nav
-        style={{
-          width: 200,
-          background: '#1a1a2e',
-          color: '#fff',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '1rem 0',
-        }}
-      >
-        <div style={{ padding: '0 1rem 1.5rem', fontSize: 18, fontWeight: 700 }}>
-          🏸 Botminton
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <span className="sidebar-brand-logo">🏸</span>
+          <span>Botminton</span>
         </div>
-        {navItems.map(({ to, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            style={({ isActive }) => ({
-              padding: '0.6rem 1rem',
-              color: isActive ? '#60a5fa' : '#cbd5e1',
-              textDecoration: 'none',
-              background: isActive ? 'rgba(255,255,255,0.07)' : 'transparent',
-            })}
-          >
-            {label}
-          </NavLink>
-        ))}
-        <button
-          onClick={handleLogout}
-          style={{
-            marginTop: 'auto',
-            margin: '1rem',
-            padding: '0.5rem',
-            background: 'transparent',
-            color: '#94a3b8',
-            border: '1px solid #334155',
-            borderRadius: 4,
-            cursor: 'pointer',
-          }}
-        >
-          Logout
-        </button>
-      </nav>
-      <main style={{ flex: 1, padding: '2rem', background: '#f8fafc' }}>{children}</main>
+        <nav className="nav-list">
+          {navItems.map(({ to, label, glyph }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
+            >
+              <span className="nav-glyph">{glyph}</span>
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">Admin console</div>
+          <button onClick={handleLogout} className="btn btn-ghost" style={{ width: '100%' }}>
+            Log out
+          </button>
+        </div>
+      </aside>
+      <main className="main">
+        <div className="page">{children}</div>
+      </main>
     </div>
   )
 }

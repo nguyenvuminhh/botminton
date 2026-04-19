@@ -20,7 +20,6 @@ interface User {
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 export default function Settings() {
-  // Defaults
   const [venues, setVenues] = useState<Venue[]>([])
   const [venueId, setVenueId] = useState('')
   const [location, setLocation] = useState('')
@@ -29,13 +28,11 @@ export default function Settings() {
   const [dayIndex, setDayIndex] = useState('')
   const [status, setStatus] = useState('')
 
-  // Venue form
   const [newVenueName, setNewVenueName] = useState('')
   const [newVenueLocation, setNewVenueLocation] = useState('')
   const [newVenuePrice, setNewVenuePrice] = useState('')
   const [venueError, setVenueError] = useState('')
 
-  // Players
   const [users, setUsers] = useState<User[]>([])
 
   function loadVenues() {
@@ -105,106 +102,134 @@ export default function Settings() {
   }
 
   return (
-    <div>
-      <h2>Settings</h2>
+    <>
+      <div className="page-header">
+        <h1>Settings</h1>
+        <span className="page-subtitle">Defaults, venues, and players.</span>
+      </div>
 
-      {/* Defaults */}
-      <section style={sectionStyle}>
-        <h3 style={h3Style}>Session defaults</h3>
-        <form onSubmit={handleSaveDefaults} style={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <label style={labelStyle}>Default venue
-            <select value={venueId} onChange={(e) => setVenueId(e.target.value)} style={inputStyle}>
+      <div className="card">
+        <div className="card-header"><h3>Session defaults</h3></div>
+        <form onSubmit={handleSaveDefaults} className="stack" style={{ maxWidth: 480 }}>
+          <div className="field">
+            <label className="field-label">Default venue</label>
+            <select className="select" value={venueId} onChange={(e) => setVenueId(e.target.value)}>
               <option value="">— none —</option>
               {venues.map((v) => <option key={v.id} value={v.id}>{v.name} — {v.location}</option>)}
             </select>
-          </label>
-          <label style={labelStyle}>Default location
-            <input value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} />
-          </label>
-          <label style={labelStyle}>Default start time
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={inputStyle} />
-          </label>
-          <label style={labelStyle}>Default end time
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={inputStyle} />
-          </label>
-          <label style={labelStyle}>Default day of week
-            <select value={dayIndex} onChange={(e) => setDayIndex(e.target.value)} style={inputStyle}>
+          </div>
+          <div className="field">
+            <label className="field-label">Default location</label>
+            <input className="input" value={location} onChange={(e) => setLocation(e.target.value)} />
+          </div>
+          <div className="row">
+            <div className="field">
+              <label className="field-label">Start time</label>
+              <input type="time" className="input" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="field-label">End time</label>
+              <input type="time" className="input" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            </div>
+          </div>
+          <div className="field">
+            <label className="field-label">Default day of week</label>
+            <select className="select" value={dayIndex} onChange={(e) => setDayIndex(e.target.value)}>
               <option value="">— none —</option>
               {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
             </select>
-          </label>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <button type="submit" style={btnStyle}>Save</button>
-            {status && <span style={{ fontSize: 14, color: '#64748b' }}>{status}</span>}
+          </div>
+          <div className="row">
+            <button type="submit" className="btn btn-primary">Save defaults</button>
+            {status && <span className={'status-msg ' + (status === 'Saved ✓' ? 'ok' : '')}>{status}</span>}
           </div>
         </form>
-      </section>
+      </div>
 
-      {/* Venues */}
-      <section style={sectionStyle}>
-        <h3 style={h3Style}>Venues</h3>
-        <form onSubmit={handleAddVenue} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-          <input placeholder="Name" value={newVenueName} onChange={(e) => setNewVenueName(e.target.value)} required style={inputStyle} />
-          <input placeholder="Location" value={newVenueLocation} onChange={(e) => setNewVenueLocation(e.target.value)} required style={inputStyle} />
-          <input type="number" step="0.01" min="0" placeholder="€/slot" value={newVenuePrice} onChange={(e) => setNewVenuePrice(e.target.value)} required style={{ ...inputStyle, width: 110 }} />
-          <button type="submit" style={btnStyle}>Add venue</button>
+      <div className="card">
+        <div className="card-header"><h3>Venues</h3></div>
+        <form onSubmit={handleAddVenue} className="form-row" style={{ marginBottom: 16 }}>
+          <div className="field">
+            <label className="field-label">Name</label>
+            <input className="input" placeholder="e.g. Unisport" value={newVenueName} onChange={(e) => setNewVenueName(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label className="field-label">Location</label>
+            <input className="input" placeholder="Address" value={newVenueLocation} onChange={(e) => setNewVenueLocation(e.target.value)} required />
+          </div>
+          <div className="field" style={{ minWidth: 110 }}>
+            <label className="field-label">€/slot</label>
+            <input className="input" type="number" step="0.01" min="0" placeholder="10.00" value={newVenuePrice} onChange={(e) => setNewVenuePrice(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn btn-primary">Add venue</button>
         </form>
-        {venueError && <p style={{ color: '#ef4444' }}>{venueError}</p>}
-        <table style={tableStyle}>
-          <thead>
-            <tr>{['Name', 'Location', '€/slot', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {venues.map((v) => (
-              <tr key={v.id}>
-                <td style={tdStyle}>{v.name}</td>
-                <td style={tdStyle}>{v.location}</td>
-                <td style={tdStyle}>€{v.price_per_slot}</td>
-                <td style={tdStyle}>
-                  <button onClick={() => handleDeleteVenue(v.name)} style={{ ...btnStyle, background: '#ef4444' }}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+        {venueError && <div className="error-banner">{venueError}</div>}
 
-      {/* Players */}
-      <section style={sectionStyle}>
-        <h3 style={h3Style}>Players</h3>
-        <p style={{ color: '#64748b', fontSize: 14 }}>
-          Players are registered automatically when they interact with the Telegram bot.
-        </p>
-        <table style={tableStyle}>
-          <thead>
-            <tr>{['Telegram ID', 'Username', 'Full name', 'Admin'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td style={tdStyle}>{u.telegram_id}</td>
-                <td style={tdStyle}>{u.telegram_user_name ?? '—'}</td>
-                <td style={tdStyle}>{u.full_name ?? '—'}</td>
-                <td style={tdStyle}>
-                  <label style={{ cursor: 'pointer' }}>
-                    <input type="checkbox" checked={u.is_admin} onChange={() => handleToggleAdmin(u)} />
-                    <span style={{ marginLeft: 6 }}>{u.is_admin ? 'Admin' : '—'}</span>
-                  </label>
-                </td>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Location</th>
+                <th className="cell-num">€/slot</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    </div>
+            </thead>
+            <tbody>
+              {venues.map((v) => (
+                <tr key={v.id}>
+                  <td><strong>{v.name}</strong></td>
+                  <td className="muted">{v.location}</td>
+                  <td className="cell-num cell-money">€{v.price_per_slot}</td>
+                  <td className="cell-actions">
+                    <button onClick={() => handleDeleteVenue(v.name)} className="btn btn-sm btn-danger">Delete</button>
+                  </td>
+                </tr>
+              ))}
+              {venues.length === 0 && (
+                <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 24 }}>No venues yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header"><h3>Players</h3></div>
+        <p className="card-hint">Players register automatically when they interact with the Telegram bot.</p>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Telegram ID</th>
+                <th>Username</th>
+                <th>Full name</th>
+                <th>Admin</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>{u.telegram_id}</td>
+                  <td>{u.telegram_user_name ? '@' + u.telegram_user_name : <span className="muted">—</span>}</td>
+                  <td>{u.full_name ?? <span className="muted">—</span>}</td>
+                  <td>
+                    <label className="checkbox-row">
+                      <input type="checkbox" checked={u.is_admin} onChange={() => handleToggleAdmin(u)} />
+                      <span className={u.is_admin ? 'pill pill-accent' : 'muted text-small'}>
+                        {u.is_admin ? 'Admin' : '—'}
+                      </span>
+                    </label>
+                  </td>
+                </tr>
+              ))}
+              {users.length === 0 && (
+                <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 24 }}>No players yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   )
 }
-
-const sectionStyle: React.CSSProperties = { background: '#fff', borderRadius: 8, padding: '1.25rem', marginBottom: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-const h3Style: React.CSSProperties = { marginTop: 0, marginBottom: '1rem', fontSize: 16 }
-const labelStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: 14, color: '#334155' }
-const inputStyle: React.CSSProperties = { padding: '0.4rem 0.6rem', borderRadius: 4, border: '1px solid #cbd5e1', fontSize: 14 }
-const btnStyle: React.CSSProperties = { padding: '0.5rem 1rem', borderRadius: 4, border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: 14 }
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', background: '#fff' }
-const thStyle: React.CSSProperties = { textAlign: 'left', padding: '0.6rem 0.8rem', background: '#f1f5f9', fontSize: 13, color: '#475569' }
-const tdStyle: React.CSSProperties = { padding: '0.5rem 0.8rem', borderTop: '1px solid #f1f5f9', fontSize: 14 }

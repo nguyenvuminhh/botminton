@@ -50,50 +50,88 @@ export default function Shuttlecocks() {
     load()
   }
 
+  const totalRemaining = batches.reduce((a, b) => a + b.remaining, 0)
+  const totalSpend = batches.reduce((a, b) => a + b.total_price, 0)
+
   return (
-    <div>
-      <h2>Shuttlecock inventory</h2>
+    <>
+      <div className="page-header">
+        <h1>Shuttlecocks</h1>
+        <span className="page-subtitle">{batches.length} batch{batches.length === 1 ? '' : 'es'}</span>
+        <div className="page-header-actions">
+          <span className="chip">Remaining {totalRemaining} tubes</span>
+          <span className="chip">Total €{totalSpend.toFixed(2)}</span>
+        </div>
+      </div>
 
-      <form onSubmit={handleAdd} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} required style={inputStyle} />
-        <input type="number" min="1" step="1" placeholder="Tubes" value={tubeCount} onChange={(e) => setTubeCount(e.target.value)} required style={{ ...inputStyle, width: 120 }} />
-        <input type="number" min="0" step="0.01" placeholder="Total price (€)" value={totalPrice} onChange={(e) => setTotalPrice(e.target.value)} required style={{ ...inputStyle, width: 160 }} />
-        <button type="submit" style={btnStyle}>Add batch</button>
-      </form>
-      {error && <p style={{ color: '#ef4444' }}>{error}</p>}
+      <div className="card">
+        <div className="card-header">
+          <h3>New batch</h3>
+        </div>
+        <form onSubmit={handleAdd} className="form-row">
+          <div className="field">
+            <label className="field-label">Purchase date</label>
+            <input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} required className="input" />
+          </div>
+          <div className="field" style={{ minWidth: 100 }}>
+            <label className="field-label">Tubes</label>
+            <input type="number" min="1" step="1" placeholder="e.g. 12" value={tubeCount} onChange={(e) => setTubeCount(e.target.value)} required className="input" />
+          </div>
+          <div className="field" style={{ minWidth: 140 }}>
+            <label className="field-label">Total €</label>
+            <input type="number" min="0" step="0.01" placeholder="0.00" value={totalPrice} onChange={(e) => setTotalPrice(e.target.value)} required className="input" />
+          </div>
+          <button type="submit" className="btn btn-primary">Add batch</button>
+        </form>
+        {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      </div>
 
-      <table style={tableStyle}>
-        <thead>
-          <tr>{['Purchase date', 'Tubes', 'Total €', '€/tube', 'Consumed', 'Remaining', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {batches.map((b) => (
-            <tr key={b.id}>
-              <td style={tdStyle}>{b.purchase_date}</td>
-              <td style={tdStyle}>{b.tube_count}</td>
-              <td style={tdStyle}>€{b.total_price.toFixed(2)}</td>
-              <td style={tdStyle}>€{b.price_each.toFixed(2)}</td>
-              <td style={tdStyle}>{b.consumed}</td>
-              <td style={tdStyle}>{b.remaining}</td>
-              <td style={tdStyle}>
-                <button
-                  onClick={() => handleDelete(b)}
-                  style={{ ...btnStyle, background: b.consumed > 0 ? '#cbd5e1' : '#ef4444', cursor: b.consumed > 0 ? 'not-allowed' : 'pointer' }}
-                  disabled={b.consumed > 0}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+      <div className="card" style={{ padding: 0 }}>
+        <div className="table-wrap" style={{ border: 'none' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Purchase date</th>
+                <th className="cell-num">Tubes</th>
+                <th className="cell-num">Total</th>
+                <th className="cell-num">€/tube</th>
+                <th className="cell-num">Consumed</th>
+                <th className="cell-num">Remaining</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {batches.map((b) => (
+                <tr key={b.id}>
+                  <td>{b.purchase_date}</td>
+                  <td className="cell-num">{b.tube_count}</td>
+                  <td className="cell-num cell-money">€{b.total_price.toFixed(2)}</td>
+                  <td className="cell-num">€{b.price_each.toFixed(2)}</td>
+                  <td className="cell-num">{b.consumed}</td>
+                  <td className="cell-num">
+                    <span className={'pill ' + (b.remaining > 0 ? 'pill-accent' : 'pill-closed')}>
+                      {b.remaining}
+                    </span>
+                  </td>
+                  <td className="cell-actions">
+                    <button
+                      onClick={() => handleDelete(b)}
+                      className={'btn btn-sm ' + (b.consumed > 0 ? 'btn-ghost' : 'btn-danger')}
+                      disabled={b.consumed > 0}
+                      title={b.consumed > 0 ? 'Cannot delete — already consumed' : 'Delete batch'}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {batches.length === 0 && (
+                <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 32 }}>No batches yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   )
 }
-
-const inputStyle: React.CSSProperties = { padding: '0.4rem 0.6rem', borderRadius: 4, border: '1px solid #cbd5e1', fontSize: 14 }
-const btnStyle: React.CSSProperties = { padding: '0.4rem 0.8rem', borderRadius: 4, border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: 14 }
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-const thStyle: React.CSSProperties = { textAlign: 'left', padding: '0.75rem 1rem', background: '#f1f5f9', fontSize: 13, color: '#475569' }
-const tdStyle: React.CSSProperties = { padding: '0.75rem 1rem', borderTop: '1px solid #f1f5f9', fontSize: 14 }

@@ -76,102 +76,124 @@ export default function Home() {
     if (lastClosed) loadPayments(lastClosed.start_date)
   }
 
-  if (loading) return <p>Loading…</p>
-
-  const allPaid = payments.length > 0 && payments.every((p) => p.has_paid)
-
-  if (lastClosed && !allPaid) {
+  if (loading) {
     return (
-      <div>
-        <h2>Home</h2>
-        <section style={sectionStyle}>
-          <h3 style={h3Style}>
-            Unpaid — {lastClosed.start_date} → {lastClosed.end_date}
-          </h3>
-          <table style={tableStyle}>
-            <thead>
-              <tr>{['Player', 'Amount', 'Paid'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => (
-                <tr key={p.id}>
-                  <td style={tdStyle}>{p.user_name ?? p.user_telegram_id}</td>
-                  <td style={tdStyle}>€{p.amount.toFixed(2)}</td>
-                  <td style={tdStyle}>
-                    <label style={{ cursor: 'pointer' }}>
-                      <input type="checkbox" checked={p.has_paid} onChange={() => togglePaid(p)} />
-                      <span style={{ marginLeft: 6, color: p.has_paid ? '#22c55e' : '#64748b' }}>
-                        {p.has_paid ? 'Paid' : 'Unpaid'}
-                      </span>
-                    </label>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => navigate(`/periods/${lastClosed.start_date}`)} style={btnStyle}>
-              Open period →
-            </button>
-          </div>
-        </section>
-      </div>
+      <>
+        <div className="page-header"><h1>Home</h1></div>
+        <div className="card empty-state">Loading…</div>
+      </>
     )
   }
 
-  return (
-    <div>
-      <h2>Home</h2>
+  const allPaid = payments.length > 0 && payments.every((p) => p.has_paid)
+  const unpaidCount = payments.filter((p) => !p.has_paid).length
+  const unpaidTotal = payments.filter((p) => !p.has_paid).reduce((a, p) => a + p.amount, 0)
 
-      {lastClosed && allPaid && (
-        <div style={{ ...sectionStyle, background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
-          <span style={{ color: '#065f46', fontWeight: 600 }}>
-            ✓ Previous period ({lastClosed.start_date} → {lastClosed.end_date}) fully paid
-          </span>
+  if (lastClosed && !allPaid) {
+    return (
+      <>
+        <div className="page-header">
+          <h1>Home</h1>
+          <span className="page-subtitle">Outstanding payments need your attention.</span>
         </div>
-      )}
 
-      {currentOpen ? (
-        <section style={sectionStyle}>
-          <h3 style={h3Style}>
-            Current period preview — {currentOpen.start_date}
-            {report && <span style={{ marginLeft: '0.75rem', color: '#64748b', fontWeight: 400 }}>Total: €{report.total_period_money.toFixed(2)}</span>}
-          </h3>
-          {report && report.personal_period_money.length > 0 ? (
-            <table style={tableStyle}>
+        <div className="card">
+          <div className="card-header">
+            <h3>Unpaid — {lastClosed.start_date} → {lastClosed.end_date}</h3>
+            <span className="chip">
+              {unpaidCount} unpaid · €{unpaidTotal.toFixed(2)}
+            </span>
+            <div className="card-header-actions">
+              <button className="btn btn-primary btn-sm" onClick={() => navigate(`/periods/${lastClosed.start_date}`)}>
+                Open period →
+              </button>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table className="table">
               <thead>
-                <tr>{['Player', 'Amount'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                <tr><th>Player</th><th className="cell-num">Amount</th><th>Status</th></tr>
               </thead>
               <tbody>
-                {report.personal_period_money.map((e) => (
-                  <tr key={e.person_id}>
-                    <td style={tdStyle}>{e.full_name || e.telegram_user_name}</td>
-                    <td style={tdStyle}>€{e.period_money.toFixed(2)}</td>
+                {payments.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.user_name ?? p.user_telegram_id}</td>
+                    <td className="cell-num cell-money">€{p.amount.toFixed(2)}</td>
+                    <td>
+                      <label className="checkbox-row">
+                        <input type="checkbox" checked={p.has_paid} onChange={() => togglePaid(p)} />
+                        <span className={'pill ' + (p.has_paid ? 'pill-paid' : 'pill-unpaid')}>
+                          {p.has_paid ? 'Paid' : 'Unpaid'}
+                        </span>
+                      </label>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : (
-            <p style={{ color: '#64748b' }}>No participants yet in this period.</p>
-          )}
-          <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => navigate(`/periods/${currentOpen.start_date}`)} style={btnStyle}>
-              Open period →
-            </button>
           </div>
-        </section>
-      ) : (
-        <p style={{ color: '#64748b' }}>
-          No active period — create one from the <a onClick={() => navigate('/periods')} style={{ color: '#3b82f6', cursor: 'pointer' }}>Periods</a> tab.
-        </p>
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <div className="page-header">
+        <h1>Home</h1>
+        <span className="page-subtitle">Overview of the current period.</span>
+      </div>
+
+      {lastClosed && allPaid && (
+        <div className="card card-success">
+          ✓ Previous period ({lastClosed.start_date} → {lastClosed.end_date}) fully paid
+        </div>
       )}
-    </div>
+
+      {currentOpen ? (
+        <div className="card">
+          <div className="card-header">
+            <h3>Current period preview</h3>
+            <span className="chip">from {currentOpen.start_date}</span>
+            {report && (
+              <span className="pill pill-accent">
+                Total €{report.total_period_money.toFixed(2)}
+              </span>
+            )}
+            <div className="card-header-actions">
+              <button className="btn btn-primary btn-sm" onClick={() => navigate(`/periods/${currentOpen.start_date}`)}>
+                Open period →
+              </button>
+            </div>
+          </div>
+
+          {report && report.personal_period_money.length > 0 ? (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr><th>Player</th><th className="cell-num">Amount</th></tr>
+                </thead>
+                <tbody>
+                  {report.personal_period_money.map((e) => (
+                    <tr key={e.person_id}>
+                      <td>{e.full_name || e.telegram_user_name}</td>
+                      <td className="cell-num cell-money">€{e.period_money.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted">No participants yet in this period.</p>
+          )}
+        </div>
+      ) : (
+        <div className="card empty-state">
+          No active period — create one from the{' '}
+          <a onClick={() => navigate('/periods')} style={{ cursor: 'pointer' }}>Periods</a> tab.
+        </div>
+      )}
+    </>
   )
 }
-
-const sectionStyle: React.CSSProperties = { background: '#fff', borderRadius: 8, padding: '1.25rem', marginBottom: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-const h3Style: React.CSSProperties = { marginTop: 0, marginBottom: '1rem', fontSize: 16 }
-const btnStyle: React.CSSProperties = { padding: '0.4rem 0.8rem', borderRadius: 4, border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: 14 }
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', background: '#fff' }
-const thStyle: React.CSSProperties = { textAlign: 'left', padding: '0.6rem 0.8rem', background: '#f1f5f9', fontSize: 13, color: '#475569' }
-const tdStyle: React.CSSProperties = { padding: '0.5rem 0.8rem', borderTop: '1px solid #f1f5f9', fontSize: 14 }
