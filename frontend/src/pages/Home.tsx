@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import MoneyMatrix from '../components/MoneyMatrix'
 
 interface Period {
   id: string
@@ -23,6 +24,32 @@ interface Report {
   total_period_money: number
   personal_period_money: ReportEntry[]
 }
+interface Session {
+  id: string
+  date: string
+  venue_name: string | null
+  slots: number
+  people_count: number
+  total_money: number
+  is_poll_open: boolean
+}
+interface Participant {
+  id: string
+  user_telegram_id: string
+  user_name: string | null
+  additional_participants: number
+}
+interface User {
+  id: string
+  telegram_id: string
+  telegram_user_name: string | null
+  full_name: string | null
+}
+interface ShuttlecockUse {
+  id: string
+  price_each: number
+  tubes_used: number
+}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -31,6 +58,10 @@ export default function Home() {
   const [currentOpen, setCurrentOpen] = useState<Period | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
   const [report, setReport] = useState<Report | null>(null)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [participantsBySession, setParticipantsBySession] = useState<Record<string, Participant[]>>({})
+  const [shuttlecockTotal, setShuttlecockTotal] = useState(0)
+  const [users, setUsers] = useState<User[]>([])
 
   const loadPayments = useCallback((startDate: string) => {
     api.get<Payment[]>(`/payments?period=${startDate}`).then((r) => setPayments(r.data)).catch(() => setPayments([]))
@@ -38,7 +69,12 @@ export default function Home() {
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    const { data: periods } = await api.get<Period[]>('/periods')
+    const [{ data: periods }, { data: usersList }] = await Promise.all([
+      api.get<Period[]>('/periods'),
+      api.get<User[]>('/users'),
+    ])
+    setUsers(usersList)
+
     const closed = periods
       .filter((p) => p.end_date)
       .sort((a, b) => (a.end_date! < b.end_date! ? 1 : -1))[0] ?? null
@@ -57,13 +93,32 @@ export default function Home() {
 
     if (open) {
       try {
-        const r = await api.get<Report>(`/payments/report/${open.start_date}`)
-        setReport(r.data)
+        const [reportRes, sessionsRes, usesRes] = await Promise.all([
+          api.get<Report>(`/payments/report/${open.start_date}`),
+          api.get<Session[]>(`/sessions?period=${open.start_date}`),
+          api.get<ShuttlecockUse[]>(`/periods/${open.start_date}/shuttlecocks`),
+        ])
+        setReport(reportRes.data)
+        setSessions(sessionsRes.data)
+        setShuttlecockTotal(usesRes.data.reduce((a, u) => a + u.price_each * u.tubes_used, 0))
+
+        const partResults = await Promise.all(
+          sessionsRes.data.map((s) =>
+            api.get<Participant[]>(`/participants?session_date=${s.date}`).then((r) => [s.id, r.data] as const)
+          )
+        )
+        setParticipantsBySession(Object.fromEntries(partResults))
       } catch {
         setReport(null)
+        setSessions([])
+        setParticipantsBySession({})
+        setShuttlecockTotal(0)
       }
     } else {
       setReport(null)
+      setSessions([])
+      setParticipantsBySession({})
+      setShuttlecockTotal(0)
     }
     setLoading(false)
   }, [])
@@ -168,25 +223,14 @@ export default function Home() {
             </div>
           </div>
 
-          {report && report.personal_period_money.length > 0 ? (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr><th>Player</th><th className="cell-num">Amount</th></tr>
-                </thead>
-                <tbody>
-                  {report.personal_period_money.map((e) => (
-                    <tr key={e.person_id}>
-                      <td>{e.full_name || e.telegram_user_name}</td>
-                      <td className="cell-num cell-money">€{e.period_money.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="muted">No participants yet in this period.</p>
-          )}
+          <MoneyMatrix
+            sessions={sessions}
+            participantsBySession={participantsBySession}
+            shuttlecockTotal={shuttlecockTotal}
+            totalPeriodMoney={report?.total_period_money ?? 0}
+            personalReport={report?.personal_period_money}
+            users={users}
+          />
         </div>
       ) : (
         <div className="card empty-state">

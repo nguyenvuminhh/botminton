@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
+import MoneyMatrix from '../components/MoneyMatrix'
 
 interface Period { id: string; start_date: string; end_date: string | null; total_money: number | null }
 interface Session {
@@ -69,9 +70,10 @@ export default function PeriodDetail() {
   const [newSessionSlots, setNewSessionSlots] = useState('')
 
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
-  const [participants, setParticipants] = useState<Participant[]>([])
+  const [participantsBySession, setParticipantsBySession] = useState<Record<string, Participant[]>>({})
   const [newPlayerTelegramId, setNewPlayerTelegramId] = useState('')
   const [newPlayerAdditional, setNewPlayerAdditional] = useState('0')
+  const participants = selectedSessionId ? (participantsBySession[selectedSessionId] ?? []) : []
 
   const [useBatchId, setUseBatchId] = useState('')
   const [useTubes, setUseTubes] = useState('1')
@@ -111,12 +113,17 @@ export default function PeriodDetail() {
     api.get<Batch[]>('/shuttlecocks').then((r) => setBatches(r.data))
   }, [startDate, loadPeriod, loadSessions, loadUses, loadReport, loadPayments])
 
-  useEffect(() => {
-    if (!selectedSessionId) { setParticipants([]); return }
-    const s = sessions.find((x) => x.id === selectedSessionId)
-    if (!s) return
-    api.get<Participant[]>(`/participants?session_date=${s.date}`).then((r) => setParticipants(r.data))
-  }, [selectedSessionId, sessions])
+  const loadParticipants = useCallback(async (sessionsList: Session[]) => {
+    if (sessionsList.length === 0) { setParticipantsBySession({}); return }
+    const results = await Promise.all(
+      sessionsList.map((s) =>
+        api.get<Participant[]>(`/participants?session_date=${s.date}`).then((r) => [s.id, r.data] as const)
+      )
+    )
+    setParticipantsBySession(Object.fromEntries(results))
+  }, [])
+
+  useEffect(() => { loadParticipants(sessions) }, [sessions, loadParticipants])
 
   async function handleAddSession(e: React.FormEvent) {
     e.preventDefault()
@@ -161,7 +168,7 @@ export default function PeriodDetail() {
     })
     setNewPlayerTelegramId(''); setNewPlayerAdditional('0')
     const r = await api.get<Participant[]>(`/participants?session_date=${s.date}`)
-    setParticipants(r.data)
+    setParticipantsBySession((prev) => ({ ...prev, [s.id]: r.data }))
     loadSessions(); loadReport()
   }
 
@@ -169,7 +176,10 @@ export default function PeriodDetail() {
     const s = sessions.find((x) => x.id === selectedSessionId)
     if (!s) return
     await api.delete(`/participants/${id}`)
-    setParticipants((prev) => prev.filter((p) => p.id !== id))
+    setParticipantsBySession((prev) => ({
+      ...prev,
+      [s.id]: (prev[s.id] ?? []).filter((p) => p.id !== id),
+    }))
     loadSessions(); loadReport()
   }
 
@@ -460,57 +470,23 @@ export default function PeriodDetail() {
           )}
         </div>
 
-        {closed ? (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Player</th>
-                  <th className="cell-num">Amount</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.user_name ?? p.user_telegram_id}</td>
-                    <td className="cell-num cell-money">€{p.amount.toFixed(2)}</td>
-                    <td>
-                      <label className="checkbox-row">
-                        <input type="checkbox" checked={p.has_paid} onChange={() => handleTogglePaid(p)} />
-                        <span className={'pill ' + (p.has_paid ? 'pill-paid' : 'pill-unpaid')}>
-                          {p.has_paid ? 'Paid' : 'Unpaid'}
-                        </span>
-                      </label>
-                    </td>
-                  </tr>
-                ))}
-                {payments.length === 0 && (
-                  <tr><td colSpan={3} className="muted" style={{ textAlign: 'center', padding: 24 }}>No payments.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr><th>Player</th><th className="cell-num">Amount</th></tr>
-              </thead>
-              <tbody>
-                {(report?.personal_period_money ?? []).map((e) => (
-                  <tr key={e.person_id}>
-                    <td>{e.full_name || e.telegram_user_name}</td>
-                    <td className="cell-num cell-money">€{e.period_money.toFixed(2)}</td>
-                  </tr>
-                ))}
-                {(!report || report.personal_period_money.length === 0) && (
-                  <tr><td colSpan={2} className="muted" style={{ textAlign: 'center', padding: 24 }}>No amounts yet.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <MoneyMatrix
+          sessions={sessions}
+          participantsBySession={participantsBySession}
+          shuttlecockTotal={shuttlecockTotal}
+          totalPeriodMoney={totalMoney}
+          personalReport={report?.personal_period_money}
+          payments={closed ? payments : undefined}
+          users={users}
+          onTogglePaid={(telegramId, hasPaid) => {
+            const p = payments.find((x) => x.user_telegram_id === telegramId)
+            if (p) handleTogglePaid(p)
+            else {
+              const endpoint = hasPaid ? '/payments/mark-unpaid' : '/payments/mark-paid'
+              api.post(endpoint, { period_start_date: startDate, user_telegram_id: telegramId }).then(loadPayments)
+            }
+          }}
+        />
       </div>
 
       {closeOpen && (
