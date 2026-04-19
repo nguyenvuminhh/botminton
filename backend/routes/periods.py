@@ -24,6 +24,7 @@ from services.periods import (
     list_all_periods,
     update_period,
 )
+from services.period_matrix import build_period_matrix
 from services.sessions import list_sessions_by_period
 from utils.messages import get_period_closed_message
 
@@ -33,20 +34,26 @@ router = APIRouter()
 
 
 async def _post_period_closed_message(start_date: str) -> bool:
+    period = get_period(start_date)
+    if not period:
+        return False
+
     report = calculate_period_report(start_date)
     if not report:
         return False
+
     sessions = list_sessions_by_period(start_date)
     session_dates = [s.date for s in sessions if getattr(s, "date", None)]  # type: ignore
     first_session_date = min(session_dates) if session_dates else None
     last_session_date = max(session_dates) if session_dates else None
     message = get_period_closed_message(report, first_session_date, last_session_date)
 
+    token = ensure_share_token(period)
+    period.share_snapshot = build_period_matrix(period)  # type: ignore
+    period.save()
+
     if PUBLIC_BASE_URL:
-        period = get_period(start_date)
-        if period:
-            token = ensure_share_token(period)
-            message += f"\n\nSee here for details: {PUBLIC_BASE_URL}/share/{token}"
+        message += f"\n\nSee here for details: {PUBLIC_BASE_URL}/share/{token}"
 
     try:
         await Bot(BOT_TOKEN).send_message(chat_id=COMMON_GROUP_CHAT_ID, text=message)

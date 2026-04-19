@@ -1,5 +1,5 @@
 from mongoengine import (
-    Document, IntField, DateField, QuerySet, StringField
+    DateField, DictField, Document, IntField, QuerySet, StringField
 )
 
 class Periods(Document):
@@ -7,6 +7,7 @@ class Periods(Document):
     end_date = DateField(null=True)
     total_money = IntField(null=True)
     share_token = StringField(null=True, unique=True, sparse=True)
+    share_snapshot = DictField(null=True)
 
     meta = {"collection": "periods"}
 
