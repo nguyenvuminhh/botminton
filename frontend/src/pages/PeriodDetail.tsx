@@ -142,6 +142,11 @@ export default function PeriodDetail() {
     loadSessions(); loadReport()
   }
 
+  async function handleUpdateVenue(s: Session, venueId: string) {
+    await api.put(`/sessions/${s.date}`, { venue: venueId })
+    loadSessions(); loadReport()
+  }
+
   async function handleDeleteSession(s: Session) {
     if (!confirm(`Delete session ${s.date}?`)) return
     await api.delete(`/sessions/${s.date}`)
@@ -272,7 +277,22 @@ export default function PeriodDetail() {
                   style={{ cursor: 'pointer', background: s.id === selectedSessionId ? '#eff6ff' : undefined }}
                 >
                   <td style={tdStyle}>{s.date}</td>
-                  <td style={tdStyle}>{s.venue_name ?? '—'}</td>
+                  <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
+                    {closed ? (
+                      s.venue_name ?? '—'
+                    ) : (
+                      <select
+                        value={venues.find((v) => v.name === s.venue_name)?.id ?? ''}
+                        onChange={(e) => handleUpdateVenue(s, e.target.value)}
+                        style={{ ...inputStyle, marginTop: 0, padding: '0.25rem 0.4rem' }}
+                      >
+                        <option value="">—</option>
+                        {venues.map((v) => (
+                          <option key={v.id} value={v.id}>{v.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
                   <td style={tdStyle}>{s.people_count}</td>
                   <td style={tdStyle}>{s.slots}</td>
                   <td style={tdStyle}>€{s.total_money.toFixed(2)}</td>
