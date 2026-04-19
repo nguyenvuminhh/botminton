@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from backend.deps import require_admin
 from schemas.sessions import Sessions
+from services.session_participants import list_session_participants
 from services.sessions import (
     create_session,
     delete_session,
@@ -19,15 +20,27 @@ router = APIRouter()
 
 
 def serialize(s: Sessions) -> dict:
+    date_iso = s.date.isoformat() if s.date else None  # type: ignore
+    people_count = 0
+    if date_iso:
+        participants = list_session_participants(date_iso)
+        people_count = sum(1 + (p.additional_participants or 0) for p in participants)  # type: ignore
+
+    price_per_slot = s.venue.price_per_slot if s.venue else 0.0  # type: ignore
+    slots = s.slots or 0.0  # type: ignore
+    total_money = round(price_per_slot * slots, 2) if price_per_slot and slots else 0.0
+
     return {
-        "id": str(s.id),
-        "date": s.date.isoformat() if s.date else None,
-        "period_id": str(s.period.id) if s.period else None,
-        "period_start_date": s.period.start_date.isoformat() if s.period and s.period.start_date else None,
-        "venue_name": s.venue.name if s.venue else None,
-        "slots": s.slots,
-        "is_poll_open": s.is_poll_open,
-        "telegram_poll_message_id": s.telegram_poll_message_id,
+        "id": str(s.id),  # type: ignore
+        "date": date_iso,
+        "period_id": str(s.period.id) if s.period else None,  # type: ignore
+        "period_start_date": s.period.start_date.isoformat() if s.period and s.period.start_date else None,  # type: ignore
+        "venue_name": s.venue.name if s.venue else None,  # type: ignore
+        "slots": slots,
+        "is_poll_open": s.is_poll_open,  # type: ignore
+        "telegram_poll_message_id": s.telegram_poll_message_id,  # type: ignore
+        "people_count": people_count,
+        "total_money": total_money,
     }
 
 

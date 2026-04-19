@@ -2,9 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.deps import require_admin
+from schemas.period_shuttlecock_uses import PeriodShuttlecockUses
 from schemas.periods import Periods
 from services.calculations import calculate_period_report
 from services.period_moneys import upsert_period_money
+from services.period_shuttlecock_uses import (
+    create_use,
+    delete_use,
+    list_uses_by_period,
+)
 from services.periods import (
     create_period,
     delete_period,
@@ -111,3 +117,45 @@ def finalize_period(start_date: str, body: FinalizePeriodBody, _: str = Depends(
         "new_period": serialize(new_period),
         "entries_upserted": len(report.personal_period_money),
     }
+
+
+class CreateShuttlecockUseBody(BaseModel):
+    batch_id: str
+    tubes_used: int
+
+
+def _serialize_use(u: PeriodShuttlecockUses) -> dict:
+    batch = u.batch  # type: ignore
+    tube_count = (batch.tube_count or 0) if batch else 0
+    total_price = (batch.total_price or 0.0) if batch else 0.0
+    price_each = round(total_price / tube_count, 2) if tube_count else 0.0
+    return {
+        "id": str(u.id),  # type: ignore
+        "batch_id": str(batch.id) if batch else None,  # type: ignore
+        "purchase_date": batch.purchase_date.isoformat() if batch and batch.purchase_date else None,  # type: ignore
+        "price_each": price_each,
+        "tubes_used": u.tubes_used,  # type: ignore
+    }
+
+
+@router.get("/{start_date}/shuttlecocks")
+def list_period_shuttlecocks(start_date: str, _: str = Depends(require_admin)):
+    return [_serialize_use(u) for u in list_uses_by_period(start_date)]
+
+
+@router.post("/{start_date}/shuttlecocks", status_code=201)
+def add_period_shuttlecock(
+    start_date: str,
+    body: CreateShuttlecockUseBody,
+    _: str = Depends(require_admin),
+):
+    u = create_use(start_date, body.batch_id, body.tubes_used)
+    if not u:
+        raise HTTPException(status_code=400, detail="Could not record shuttlecock use")
+    return _serialize_use(u)
+
+
+@router.delete("/{start_date}/shuttlecocks/{use_id}", status_code=204)
+def remove_period_shuttlecock(start_date: str, use_id: str, _: str = Depends(require_admin)):
+    if not delete_use(use_id):
+        raise HTTPException(status_code=404, detail="Shuttlecock use not found")

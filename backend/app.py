@@ -19,9 +19,29 @@ from backend.routes import (
 )
 from config import BOT_TOKEN, WEBHOOK_SECRET, WEBHOOK_URL
 from schemas.metadata import Metadata
+from schemas.period_shuttlecock_uses import PeriodShuttlecockUses
+from schemas.shuttlecock_batches import ShuttlecockBatches
 from utils.database import db_manager
 
 logger = logging.getLogger(__name__)
+
+
+def _backfill_legacy_shuttlecock_batches() -> None:
+    """Migrate any ShuttlecockBatch rows that still have a `period` ref but no PeriodShuttlecockUse:
+    create a use row consuming the full tube_count, then clear the legacy `period` field.
+    Idempotent — safe to run on every startup.
+    """
+    migrated = 0
+    for batch in ShuttlecockBatches.objects(period__ne=None):  # type: ignore
+        existing = PeriodShuttlecockUses.objects(batch=batch).first()  # type: ignore
+        if existing is None:
+            tubes_used = batch.tube_count or 1  # type: ignore
+            PeriodShuttlecockUses(period=batch.period, batch=batch, tubes_used=tubes_used).save()  # type: ignore
+        batch.period = None  # type: ignore
+        batch.save()
+        migrated += 1
+    if migrated:
+        logger.info("Migrated %d legacy shuttlecock batch(es) to PeriodShuttlecockUses", migrated)
 
 
 def create_app() -> FastAPI:
@@ -43,6 +63,7 @@ def create_app() -> FastAPI:
         nonlocal _bot_app
         db_manager.connect()
         Metadata.create()
+        _backfill_legacy_shuttlecock_batches()
 
         if WEBHOOK_URL:
             from bot_app import build_application

@@ -2,12 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
 import Layout from './components/Layout'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
 import Periods from './pages/Periods'
-import Sessions from './pages/Sessions'
-import Players from './pages/Players'
-import Payments from './pages/Payments'
-import Venues from './pages/Venues'
+import PeriodDetail from './pages/PeriodDetail'
 import Shuttlecocks from './pages/Shuttlecocks'
 import Settings from './pages/Settings'
 
@@ -28,12 +24,9 @@ export default function App() {
               <PrivateRoute>
                 <Layout>
                   <Routes>
-                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/" element={<Navigate to="/periods" replace />} />
                     <Route path="/periods" element={<Periods />} />
-                    <Route path="/sessions" element={<Sessions />} />
-                    <Route path="/players" element={<Players />} />
-                    <Route path="/payments" element={<Payments />} />
-                    <Route path="/venues" element={<Venues />} />
+                    <Route path="/periods/:startDate" element={<PeriodDetail />} />
                     <Route path="/shuttlecocks" element={<Shuttlecocks />} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>

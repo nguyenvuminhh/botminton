@@ -3,12 +3,7 @@ import { useAuth } from '../auth'
 import type { ReactNode } from 'react'
 
 const navItems = [
-  { to: '/', label: 'Dashboard' },
   { to: '/periods', label: 'Periods' },
-  { to: '/sessions', label: 'Sessions' },
-  { to: '/players', label: 'Players' },
-  { to: '/payments', label: 'Payments' },
-  { to: '/venues', label: 'Venues' },
   { to: '/shuttlecocks', label: 'Shuttlecocks' },
   { to: '/settings', label: 'Settings' },
 ]
@@ -41,7 +36,6 @@ export default function Layout({ children }: { children: ReactNode }) {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
             style={({ isActive }) => ({
               padding: '0.6rem 1rem',
               color: isActive ? '#60a5fa' : '#cbd5e1',
