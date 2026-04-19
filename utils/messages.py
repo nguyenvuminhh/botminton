@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Optional
 from models.period_money import PeriodMoneyReport
 from utils.date import format_to_dd_mm, get_next_day
 
@@ -19,6 +20,21 @@ def get_money_message(period_money_report: PeriodMoneyReport) -> str:
 
 def get_react_after_sending_money_message() -> str:
     return "Ai gửi rồi thì react tin nhắn này giúp em ạ"
+
+
+def get_period_closed_message(
+    report: PeriodMoneyReport,
+    first_session_date: Optional[date],
+    last_session_date: Optional[date],
+) -> str:
+    from_str = format_to_dd_mm(first_session_date) if first_session_date else "—"
+    to_str = format_to_dd_mm(last_session_date) if last_session_date else "—"
+    lines = [f"Period from {from_str} to {to_str} closed.", ""]
+    for p in report.personal_period_money:
+        name = p.full_name or p.telegram_user_name
+        handle = p.telegram_user_name if p.telegram_user_name.startswith("@") else f"@{p.telegram_user_name}"
+        lines.append(f"{name} ({handle}) {p.period_money:.2f}")
+    return "\n".join(lines)
 
 def get_poll_title(start_time: str, end_time: str, location: str, day_of_the_week_index: int) -> str:
     target_day = format_to_dd_mm(get_next_day(date.today(), day_of_the_week_index))

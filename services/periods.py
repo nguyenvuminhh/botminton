@@ -1,3 +1,4 @@
+import secrets
 from datetime import date as dt_date
 from mongoengine import DoesNotExist, ValidationError, MultipleObjectsReturned, NotUniqueError
 from schemas.periods import Periods
@@ -124,6 +125,26 @@ class PeriodService:
         return None
 
     @staticmethod
+    def ensure_share_token(period: Periods) -> str:
+        existing = getattr(period, "share_token", None)
+        if existing:
+            return existing
+        token = secrets.token_urlsafe(24)
+        period.share_token = token  # type: ignore
+        period.save()
+        return token
+
+    @staticmethod
+    def get_period_by_share_token(token: str) -> Optional[Periods]:
+        try:
+            return cast(Optional[Periods], Periods.objects.get(share_token=token))
+        except DoesNotExist:
+            return None
+        except Exception as e:
+            logger.error(f"Error getting period by share_token: {e}")
+            return None
+
+    @staticmethod
     def get_period_count() -> int:
         try:
             return int(Periods.objects.count())  # type: ignore
@@ -156,6 +177,12 @@ def get_last_closed_period() -> Optional[Periods]:
 
 def get_period_count() -> int:
     return PeriodService.get_period_count()
+
+def ensure_share_token(period: Periods) -> str:
+    return PeriodService.ensure_share_token(period)
+
+def get_period_by_share_token(token: str) -> Optional[Periods]:
+    return PeriodService.get_period_by_share_token(token)
 
 # Legacy alias used by some tests
 def get_period_by_start_date(start_date: str) -> Optional[Periods]:

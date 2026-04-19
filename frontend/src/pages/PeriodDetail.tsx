@@ -85,6 +85,8 @@ export default function PeriodDetail() {
   const [submitting, setSubmitting] = useState(false)
   const [modalError, setModalError] = useState('')
 
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
   const closed = Boolean(period?.end_date)
 
   const loadPeriod = useCallback(() => {
@@ -207,6 +209,18 @@ export default function PeriodDetail() {
     const endpoint = p.has_paid ? '/payments/mark-unpaid' : '/payments/mark-paid'
     await api.post(endpoint, { period_start_date: startDate, user_telegram_id: p.user_telegram_id })
     loadPayments()
+  }
+
+  async function handleResendSummary() {
+    setResendState('sending')
+    try {
+      await api.post(`/periods/${startDate}/resend-summary`)
+      setResendState('sent')
+      setTimeout(() => setResendState('idle'), 2500)
+    } catch {
+      setResendState('error')
+      setTimeout(() => setResendState('idle'), 3000)
+    }
   }
 
   async function handleDeletePeriod() {
@@ -474,11 +488,24 @@ export default function PeriodDetail() {
         <div className="card-header">
           <h3>Money split {closed ? '(final)' : '(preview)'}</h3>
           <span className="pill pill-accent">Total €{totalMoney.toFixed(2)}</span>
-          {!closed && (
-            <div className="card-header-actions">
+          <div className="card-header-actions">
+            {closed && (
+              <>
+                {resendState === 'sent' && <span className="status-msg ok">Sent ✓</span>}
+                {resendState === 'error' && <span className="status-msg" style={{ color: 'var(--danger)' }}>Failed</span>}
+                <button
+                  onClick={handleResendSummary}
+                  disabled={resendState === 'sending'}
+                  className="btn btn-ghost btn-sm"
+                >
+                  {resendState === 'sending' ? 'Resending…' : 'Resend to group'}
+                </button>
+              </>
+            )}
+            {!closed && (
               <button onClick={openCloseModal} className="btn btn-primary">Close period →</button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <MoneyMatrix

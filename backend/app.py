@@ -12,6 +12,7 @@ from backend.routes import (
     participants,
     payments,
     periods,
+    public,
     sessions,
     shuttlecocks,
     users,
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
     app.include_router(shuttlecocks.router, prefix="/api/shuttlecocks", tags=["shuttlecocks"])
     app.include_router(metadata.router, prefix="/api/metadata", tags=["metadata"])
+    app.include_router(public.router, prefix="/api/public", tags=["public"])
 
     # Serve React build in production
     frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

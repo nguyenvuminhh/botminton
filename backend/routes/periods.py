@@ -1,7 +1,11 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from telegram import Bot
 
 from backend.deps import require_admin
+from config import BOT_TOKEN, COMMON_GROUP_CHAT_ID, PUBLIC_BASE_URL
 from schemas.period_shuttlecock_uses import PeriodShuttlecockUses
 from schemas.periods import Periods
 from services.calculations import calculate_period_report
@@ -14,13 +18,42 @@ from services.period_shuttlecock_uses import (
 from services.periods import (
     create_period,
     delete_period,
+    ensure_share_token,
     get_current_period,
     get_period,
     list_all_periods,
     update_period,
 )
+from services.sessions import list_sessions_by_period
+from utils.messages import get_period_closed_message
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _post_period_closed_message(start_date: str) -> bool:
+    report = calculate_period_report(start_date)
+    if not report:
+        return False
+    sessions = list_sessions_by_period(start_date)
+    session_dates = [s.date for s in sessions if getattr(s, "date", None)]  # type: ignore
+    first_session_date = min(session_dates) if session_dates else None
+    last_session_date = max(session_dates) if session_dates else None
+    message = get_period_closed_message(report, first_session_date, last_session_date)
+
+    if PUBLIC_BASE_URL:
+        period = get_period(start_date)
+        if period:
+            token = ensure_share_token(period)
+            message += f"\n\nSee here for details: {PUBLIC_BASE_URL}/share/{token}"
+
+    try:
+        await Bot(BOT_TOKEN).send_message(chat_id=COMMON_GROUP_CHAT_ID, text=message)
+        return True
+    except Exception:
+        logger.exception("failed to post period-closed message for %s", start_date)
+        return False
 
 
 def serialize(p: Periods) -> dict:
@@ -93,7 +126,7 @@ def remove_period(start_date: str, _: str = Depends(require_admin)):
 
 
 @router.post("/{start_date}/finalize")
-def finalize_period(start_date: str, body: FinalizePeriodBody, _: str = Depends(require_admin)):
+async def finalize_period(start_date: str, body: FinalizePeriodBody, _: str = Depends(require_admin)):
     report = calculate_period_report(start_date)
     if not report:
         raise HTTPException(status_code=404, detail="Period not found or report unavailable")
@@ -112,11 +145,25 @@ def finalize_period(start_date: str, body: FinalizePeriodBody, _: str = Depends(
             detail=f"Period closed, but could not create new period starting {body.new_period_start_date} (already exists?)",
         )
 
+    group_posted = await _post_period_closed_message(start_date)
+
     return {
         "closed_period": serialize(closed),
         "new_period": serialize(new_period),
         "entries_upserted": len(report.personal_period_money),
+        "group_posted": group_posted,
     }
+
+
+@router.post("/{start_date}/resend-summary")
+async def resend_summary(start_date: str, _: str = Depends(require_admin)):
+    p = get_period(start_date)
+    if not p:
+        raise HTTPException(status_code=404, detail="Period not found")
+    posted = await _post_period_closed_message(start_date)
+    if not posted:
+        raise HTTPException(status_code=502, detail="Failed to send message to group")
+    return {"group_posted": True}
 
 
 class CreateShuttlecockUseBody(BaseModel):

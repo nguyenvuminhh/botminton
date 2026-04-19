@@ -7,6 +7,7 @@ import Periods from './pages/Periods'
 import PeriodDetail from './pages/PeriodDetail'
 import Shuttlecocks from './pages/Shuttlecocks'
 import Settings from './pages/Settings'
+import SharedPeriod from './pages/SharedPeriod'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth()
@@ -19,6 +20,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/share/:token" element={<SharedPeriod />} />
           <Route
             path="/*"
             element={
