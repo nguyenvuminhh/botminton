@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import MoneyMatrix from '../components/MoneyMatrix'
 
@@ -55,6 +55,7 @@ function tomorrowISO() {
 export default function PeriodDetail() {
   const { startDate = '' } = useParams<{ startDate: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [period, setPeriod] = useState<Period | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
@@ -221,6 +222,15 @@ export default function PeriodDetail() {
     setCloseOpen(true)
   }
 
+  useEffect(() => {
+    if (searchParams.get('close') === '1' && period && !period.end_date) {
+      openCloseModal()
+      const next = new URLSearchParams(searchParams)
+      next.delete('close')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, period, setSearchParams])
+
   async function handleFinalize() {
     setSubmitting(true); setModalError('')
     try {
@@ -251,6 +261,7 @@ export default function PeriodDetail() {
   const availableBatches = batches.filter((b) => b.remaining > 0)
   const totalMoney = report?.total_period_money ?? 0
   const shuttlecockTotal = uses.reduce((a, u) => a + u.price_each * u.tubes_used, 0)
+  const shuttlecockTubes = uses.reduce((a, u) => a + u.tubes_used, 0)
 
   return (
     <>
@@ -474,6 +485,7 @@ export default function PeriodDetail() {
           sessions={sessions}
           participantsBySession={participantsBySession}
           shuttlecockTotal={shuttlecockTotal}
+          shuttlecockTubes={shuttlecockTubes}
           totalPeriodMoney={totalMoney}
           personalReport={report?.personal_period_money}
           payments={closed ? payments : undefined}

@@ -408,24 +408,7 @@ a:hover { text-decoration: underline; }
 .table td.cell-money { font-weight: 600; }
 
 .table-wrap.scroll-x { overflow-x: auto; }
-.table tr.row-totals th,
-.table tr.row-totals td {
-  background: var(--surface-alt);
-  color: var(--text-strong);
-  font-weight: 600;
-  font-size: 12px;
-  border-bottom: 1px solid var(--border);
-  text-transform: none;
-  letter-spacing: 0;
-}
-.table tr.row-totals th:first-child,
-.table tr.row-totals td:first-child {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+
 .table th.col-total,
 .table td.col-total {
   background: var(--accent-soft);
@@ -445,12 +428,61 @@ a:hover { text-decoration: underline; }
   color: var(--accent);
   font-weight: 700;
 }
-.table th.col-session {
+
+/* ============ Matrix table ============ */
+
+.table-matrix thead th {
   text-align: center;
-  color: var(--text-strong);
-  font-size: 12px;
+  vertical-align: bottom;
+  padding: 14px 14px;
   text-transform: none;
   letter-spacing: 0;
+  font-size: 13px;
+  color: var(--text-strong);
+}
+.table-matrix tbody td { padding: 12px 14px; }
+.table-matrix th,
+.table-matrix td { border-right: 1px solid var(--border); }
+.table-matrix th:last-child,
+.table-matrix td:last-child { border-right: none; }
+
+.table-matrix td.cell-name { text-align: left; font-weight: 600; }
+.table-matrix td.cell-handle { text-align: left; color: var(--text-muted); }
+.table-matrix td.cell-num { text-align: right; }
+.table-matrix td.cell-weight { text-align: center; }
+.table-matrix td.cell-paid { text-align: center; }
+
+.col-header-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.col-header-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-strong);
+}
+.col-header-meta {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-matrix tfoot td {
+  border-top: 1px solid var(--border-strong);
+  padding: 13px 16px;
+  background: var(--surface-alt);
+  font-weight: 600;
+}
+.table-matrix tfoot td.col-total {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 15px;
+  text-align: right;
 }
 
 /* ============ Pills / Badges ============ */

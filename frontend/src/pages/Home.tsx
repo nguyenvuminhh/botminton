@@ -61,6 +61,7 @@ export default function Home() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [participantsBySession, setParticipantsBySession] = useState<Record<string, Participant[]>>({})
   const [shuttlecockTotal, setShuttlecockTotal] = useState(0)
+  const [shuttlecockTubes, setShuttlecockTubes] = useState(0)
   const [users, setUsers] = useState<User[]>([])
 
   const loadPayments = useCallback((startDate: string) => {
@@ -101,6 +102,7 @@ export default function Home() {
         setReport(reportRes.data)
         setSessions(sessionsRes.data)
         setShuttlecockTotal(usesRes.data.reduce((a, u) => a + u.price_each * u.tubes_used, 0))
+        setShuttlecockTubes(usesRes.data.reduce((a, u) => a + u.tubes_used, 0))
 
         const partResults = await Promise.all(
           sessionsRes.data.map((s) =>
@@ -113,12 +115,14 @@ export default function Home() {
         setSessions([])
         setParticipantsBySession({})
         setShuttlecockTotal(0)
+        setShuttlecockTubes(0)
       }
     } else {
       setReport(null)
       setSessions([])
       setParticipantsBySession({})
       setShuttlecockTotal(0)
+      setShuttlecockTubes(0)
     }
     setLoading(false)
   }, [])
@@ -217,8 +221,8 @@ export default function Home() {
               </span>
             )}
             <div className="card-header-actions">
-              <button className="btn btn-primary btn-sm" onClick={() => navigate(`/periods/${currentOpen.start_date}`)}>
-                Open period →
+              <button className="btn btn-primary btn-sm" onClick={() => navigate(`/periods/${currentOpen.start_date}?close=1`)}>
+                Close period →
               </button>
             </div>
           </div>
@@ -227,6 +231,7 @@ export default function Home() {
             sessions={sessions}
             participantsBySession={participantsBySession}
             shuttlecockTotal={shuttlecockTotal}
+            shuttlecockTubes={shuttlecockTubes}
             totalPeriodMoney={report?.total_period_money ?? 0}
             personalReport={report?.personal_period_money}
             users={users}

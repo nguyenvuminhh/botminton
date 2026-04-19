@@ -29,6 +29,7 @@ interface Props {
   sessions: Session[]
   participantsBySession: Record<string, Participant[]>
   shuttlecockTotal: number
+  shuttlecockTubes: number
   totalPeriodMoney: number
   personalReport?: ReportEntry[]
   payments?: Payment[]
@@ -45,6 +46,7 @@ export default function MoneyMatrix({
   sessions,
   participantsBySession,
   shuttlecockTotal,
+  shuttlecockTubes,
   totalPeriodMoney,
   personalReport,
   payments,
@@ -53,7 +55,7 @@ export default function MoneyMatrix({
 }: Props) {
   const closed = !!payments && payments.length > 0
   const sessionsSorted = [...sessions].sort((a, b) => (a.date < b.date ? -1 : 1))
-  const showShuttlecockCol = shuttlecockTotal > 0 || Object.values(participantsBySession).some((ps) => ps.length > 0)
+  const showShuttlecockCol = shuttlecockTotal > 0 || shuttlecockTubes > 0
 
   const sessionTotalWeight: Record<string, number> = {}
   for (const s of sessionsSorted) {
@@ -110,46 +112,43 @@ export default function MoneyMatrix({
     return <div className="empty-state">No participants yet.</div>
   }
 
+  const sessionColCount = sessionsSorted.length + (showShuttlecockCol ? 1 : 0)
+  const shuttleLabel = `${shuttlecockTubes} tube${shuttlecockTubes === 1 ? '' : 's'} of shuttle cock`
+
   return (
     <div className="table-wrap scroll-x">
-      <table className="table">
+      <table className="table table-matrix">
         <thead>
           <tr>
             <th>Player</th>
             <th>Handle</th>
             {sessionsSorted.map((s) => (
-              <th key={s.id} className="col-session">{formatShortDate(s.date)}</th>
+              <th key={s.id}>
+                <span className="col-header-block">
+                  <span className="col-header-title">{formatShortDate(s.date)}</span>
+                  <span className="col-header-meta">Price: €{s.total_money.toFixed(2)}</span>
+                  <span className="col-header-meta">Shares: {sessionTotalWeight[s.id] || 0}</span>
+                </span>
+              </th>
             ))}
-            {showShuttlecockCol && <th className="col-session">Shuttles</th>}
-            <th className="cell-num col-total">Total</th>
+            {showShuttlecockCol && (
+              <th>
+                <span className="col-header-block">
+                  <span className="col-header-title">{shuttleLabel}</span>
+                  <span className="col-header-meta">Price: €{shuttlecockTotal.toFixed(2)}</span>
+                  <span className="col-header-meta">Shares: {periodTotalWeight}</span>
+                </span>
+              </th>
+            )}
+            <th className="col-total">Total</th>
             {closed && <th>Paid</th>}
-          </tr>
-          <tr className="row-totals">
-            <td>Total money</td>
-            <td></td>
-            {sessionsSorted.map((s) => (
-              <td key={s.id} className="cell-num">€{s.total_money.toFixed(2)}</td>
-            ))}
-            {showShuttlecockCol && <td className="cell-num">€{shuttlecockTotal.toFixed(2)}</td>}
-            <td className="cell-num col-total">€{totalPeriodMoney.toFixed(2)}</td>
-            {closed && <td></td>}
-          </tr>
-          <tr className="row-totals">
-            <td>Total people</td>
-            <td></td>
-            {sessionsSorted.map((s) => (
-              <td key={s.id} className="cell-num">{sessionTotalWeight[s.id] || '—'}</td>
-            ))}
-            {showShuttlecockCol && <td className="cell-num">{periodTotalWeight || '—'}</td>}
-            <td></td>
-            {closed && <td></td>}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.telegramId}>
-              <td><strong>{r.name}</strong></td>
-              <td className="muted">{r.handle ? '@' + r.handle : <span className="muted">—</span>}</td>
+              <td className="cell-name">{r.name}</td>
+              <td className="cell-handle">{r.handle ? '@' + r.handle : '—'}</td>
               {sessionsSorted.map((s) => {
                 const w = r.perSession[s.id] || 0
                 const cls = 'cell-weight' + (w > 0 ? ' active' : '') + (w > 1 ? ' plus' : '')
@@ -164,7 +163,7 @@ export default function MoneyMatrix({
                 €{(moneyByPlayer[r.telegramId] ?? 0).toFixed(2)}
               </td>
               {closed && (
-                <td>
+                <td className="cell-paid">
                   <label className="checkbox-row">
                     <input
                       type="checkbox"
@@ -180,6 +179,13 @@ export default function MoneyMatrix({
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={2 + sessionColCount}></td>
+            <td className="col-total">€{totalPeriodMoney.toFixed(2)}</td>
+            {closed && <td></td>}
+          </tr>
+        </tfoot>
       </table>
     </div>
   )
