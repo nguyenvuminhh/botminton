@@ -15,6 +15,7 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 PUBLIC_BASE_URL = (os.environ.get("PUBLIC_BASE_URL") or WEBHOOK_URL or "").rstrip("/")
 
 LOG_GROUP_CHAT_ID = os.environ.get("LOG_GROUP_CHAT_ID")
+OPERATION_LOG_GROUP_CHAT_ID = os.environ.get("OPERATION_LOG_GROUP_CHAT_ID")
 
 JWT_SECRET = os.environ["JWT_SECRET"]
 API_PORT   = int(os.environ.get("API_PORT", "8000"))

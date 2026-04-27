@@ -15,11 +15,13 @@ from services.session_participants import create_participant, delete_participant
 from utils.decorator import check_admin_middleware, upsert_user
 from utils.date import get_next_day, format_to_dd_mm
 from utils.messages import get_poll_title
+from utils.operation_log import send_operation_log
 import logging
 
 logger = logging.getLogger(__name__)
 
 YES_OPTION_INDEX = ALL_POLL_OPTIONS.index(PollOptions.YES)
+NO_OPTION_INDEX  = ALL_POLL_OPTIONS.index(PollOptions.NO)
 
 
 def _get_next_friday_midnight() -> datetime:
@@ -221,3 +223,19 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             user_telegram_id=telegram_id,
             session_date=session_date_str,
         )
+
+    if voted_yes:
+        action = "Voted YES for poll"
+    elif NO_OPTION_INDEX in poll_answer.option_ids:
+        action = "Voted NO for poll"
+    else:
+        action = "Retracted vote from poll"
+    await send_operation_log(
+        bot=context.bot,
+        actor_first_name=voter.first_name,
+        actor_last_name=voter.last_name,
+        actor_username=voter.username,
+        actor_id=voter.id,
+        did_what=action,
+        extra_info=f"Session: {session_date_str}",
+    )

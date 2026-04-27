@@ -29,6 +29,7 @@ from commands.start import test_admin
 from config import ADMIN_USER_ID, BOT_TOKEN, LOG_GROUP_CHAT_ID
 from constants import Commands
 from utils.decorator import upsert_user, user_insertion_middleware
+from utils.operation_log import operation_log_middleware
 from utils.telegram_log_handler import TelegramLogHandler
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ PRIVATE = filters.ChatType.PRIVATE
 
 
 def _register(app: Application, command: str, handler_func, chat_filter) -> None:
-    app.add_handler(CommandHandler(command, user_insertion_middleware(handler_func), filters=chat_filter))
+    app.add_handler(CommandHandler(command, operation_log_middleware(user_insertion_middleware(handler_func)), filters=chat_filter))
 
 
 async def _upsert_on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
