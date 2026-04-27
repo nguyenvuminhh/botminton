@@ -212,13 +212,20 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     session_date_str = session.date.isoformat()  # type: ignore
     voted_yes = YES_OPTION_INDEX in poll_answer.option_ids
+    voted_no = NO_OPTION_INDEX in poll_answer.option_ids
 
     if voted_yes:
         logger.info("handle_poll_answer: user_id=%s voted YES for session=%s", telegram_id, session_date_str)
         create_participant(user_telegram_id=telegram_id, session_date=session_date_str)
+    elif voted_no:
+        logger.info("handle_poll_answer: user_id=%s voted NO for session=%s", telegram_id, session_date_str)
+        delete_participant_by_user_and_session(
+            user_telegram_id=telegram_id,
+            session_date=session_date_str,
+        )
     else:
         # Voted NO or retracted vote
-        logger.info("handle_poll_answer: user_id=%s voted NO/retracted for session=%s", telegram_id, session_date_str)
+        logger.info("handle_poll_answer: user_id=%s retracted for session=%s", telegram_id, session_date_str)
         delete_participant_by_user_and_session(
             user_telegram_id=telegram_id,
             session_date=session_date_str,
@@ -226,7 +233,7 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if voted_yes:
         action = "Voted YES for poll"
-    elif NO_OPTION_INDEX in poll_answer.option_ids:
+    elif voted_no:
         action = "Voted NO for poll"
     else:
         action = "Retracted vote from poll"
