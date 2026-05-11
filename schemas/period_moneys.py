@@ -11,4 +11,10 @@ class PeriodMoneys(Document):
     amount = FloatField(required=True)
     has_paid = BooleanField(default=False)
 
-    meta = {"collection": "period_moneys"}
+    meta = {
+        "collection": "period_moneys",
+        "indexes": [
+            "user",
+            {"fields": ["period", "user"]},
+        ],
+    }

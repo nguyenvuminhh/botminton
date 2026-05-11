@@ -15,6 +15,9 @@ class Sessions(Document):
     is_poll_open = BooleanField(default=False)
     telegram_poll_message_id = StringField()
 
-    meta = {"collection": "sessions"}
+    meta = {
+        "collection": "sessions",
+        "indexes": ["period", "is_poll_open"],
+    }
 
     objects: QuerySet  # type: ignore[attr-defined]

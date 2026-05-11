@@ -9,6 +9,12 @@ class PeriodShuttlecockUses(Document):
     batch = ReferenceField(ShuttlecockBatches, required=True, reverse_delete_rule=CASCADE)
     tubes_used = IntField(required=True)
 
-    meta = {"collection": "period_shuttlecock_uses"}
+    meta = {
+        "collection": "period_shuttlecock_uses",
+        "indexes": [
+            "batch",
+            {"fields": ["period", "batch"]},
+        ],
+    }
 
     objects: QuerySet  # type: ignore[attr-defined]

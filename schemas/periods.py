@@ -9,6 +9,9 @@ class Periods(Document):
     share_token = StringField(null=True, unique=True, sparse=True)
     share_snapshot = DictField(null=True)
 
-    meta = {"collection": "periods"}
+    meta = {
+        "collection": "periods",
+        "indexes": ["start_date", "end_date"],
+    }
 
     objects: QuerySet  # type: ignore[attr-defined]

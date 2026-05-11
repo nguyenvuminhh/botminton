@@ -133,7 +133,7 @@ class SessionService:
                 period = Periods.objects.get(start_date=dt_date.fromisoformat(period_id))  # type: ignore
             except Exception:
                 period = Periods.objects.get(id=period_id)  # type: ignore
-            return list(Sessions.objects(period=period))  # type: ignore
+            return list(Sessions.objects(period=period).order_by("date").select_related())  # type: ignore
         except DoesNotExist:
             logger.info(f"No period found with id/start_date {period_id}")
         except Exception as e:

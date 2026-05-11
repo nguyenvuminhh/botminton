@@ -10,6 +10,12 @@ class SessionParticipants(Document):
     session = ReferenceField(Sessions, required=True, reverse_delete_rule=CASCADE)
     additional_participants = IntField(default=0)
 
-    meta = {"collection": "session_participants"}
+    meta = {
+        "collection": "session_participants",
+        "indexes": [
+            "user",
+            {"fields": ["session", "user"]},
+        ],
+    }
 
     objects: QuerySet  # type: ignore[attr-defined]

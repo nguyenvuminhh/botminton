@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from backend.deps import require_admin
 from schemas.sessions import Sessions
-from services.session_participants import list_session_participants
+from services.session_participants import list_participants_by_sessions, list_session_participants
 from services.sessions import (
     create_session,
     delete_session,
@@ -19,11 +19,12 @@ from services.sessions import (
 router = APIRouter()
 
 
-def serialize(s: Sessions) -> dict:
+def serialize(s: Sessions, participants=None) -> dict:
     date_iso = s.date.isoformat() if s.date else None  # type: ignore
     people_count = 0
-    if date_iso:
+    if participants is None and date_iso:
         participants = list_session_participants(date_iso)
+    if participants:
         people_count = sum(1 + (p.additional_participants or 0) for p in participants)  # type: ignore
 
     price_per_slot = s.venue.price_per_slot if s.venue else 0.0  # type: ignore
@@ -60,7 +61,14 @@ class UpdateSessionBody(BaseModel):
 @router.get("")
 def get_sessions(period: Optional[str] = None, _: str = Depends(require_admin)):
     if period:
-        return [serialize(s) for s in list_sessions_by_period(period)]
+        sessions = list_sessions_by_period(period)
+        participants_by_session: dict[str, list] = {}
+        for participant in list_participants_by_sessions(sessions):
+            session = getattr(participant, "session", None)
+            if not session:
+                continue
+            participants_by_session.setdefault(str(session.id), []).append(participant)  # type: ignore
+        return [serialize(s, participants_by_session.get(str(s.id), [])) for s in sessions]  # type: ignore
     raise HTTPException(status_code=400, detail="Provide ?period=<start_date>")
 
 

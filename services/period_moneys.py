@@ -275,7 +275,7 @@ class PeriodMoneyService:
                 logger.warning(f"Period with start_date {period_start_date} not found")
                 return []
             
-            period_moneys = list(PeriodMoneys.objects.filter(period=period))  # type: ignore
+            period_moneys = list(PeriodMoneys.objects.filter(period=period).select_related())  # type: ignore
             
             logger.debug(f"Found {len(period_moneys)} period moneys for period {period_start_date}")
             return period_moneys

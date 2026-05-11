@@ -41,7 +41,7 @@ class PeriodShuttlecockUseService:
                 Periods,
                 Periods.objects.get(start_date=dt_date.fromisoformat(period_start_date)),  # type: ignore
             )
-            return list(PeriodShuttlecockUses.objects.filter(period=period))  # type: ignore
+            return list(PeriodShuttlecockUses.objects.filter(period=period).select_related())  # type: ignore
         except DoesNotExist:
             logger.error(f"Period {period_start_date} not found")
         except Exception as e:
