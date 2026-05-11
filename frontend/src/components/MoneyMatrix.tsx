@@ -24,12 +24,26 @@ interface ReportEntry {
   full_name: string | null
   period_money: number
 }
+interface AdditionalCost {
+  id: string
+  name: string
+  total_amount: number
+  total_weight?: number
+}
+interface AdditionalCostParticipant {
+  user_telegram_id: string
+  user_name: string | null
+  full_name?: string | null
+  weight: number
+}
 
 interface Props {
   sessions: Session[]
   participantsBySession: Record<string, Participant[]>
   shuttlecockTotal: number
   shuttlecockTubes: number
+  additionalCosts?: AdditionalCost[]
+  additionalCostParticipantsByCost?: Record<string, AdditionalCostParticipant[]>
   totalPeriodMoney: number
   personalReport?: ReportEntry[]
   payments?: Payment[]
@@ -47,6 +61,8 @@ export default function MoneyMatrix({
   participantsBySession,
   shuttlecockTotal,
   shuttlecockTubes,
+  additionalCosts = [],
+  additionalCostParticipantsByCost = {},
   totalPeriodMoney,
   personalReport,
   payments,
@@ -55,6 +71,7 @@ export default function MoneyMatrix({
 }: Props) {
   const closed = !!payments && payments.length > 0
   const sessionsSorted = [...sessions].sort((a, b) => (a.date < b.date ? -1 : 1))
+  const additionalCostsSorted = [...additionalCosts]
   const showShuttlecockCol = shuttlecockTotal > 0 || shuttlecockTubes > 0
 
   const sessionTotalWeight: Record<string, number> = {}
@@ -68,26 +85,47 @@ export default function MoneyMatrix({
     name: string
     handle: string | null
     perSession: Record<string, number>
+    perAdditionalCost: Record<string, number>
     periodWeight: number
   }
   const rowsMap: Record<string, Row> = {}
+  function ensureRow(
+    telegramId: string,
+    fallbackName: string | null = null,
+    fallbackHandle: string | null = null,
+  ) {
+    if (!rowsMap[telegramId]) {
+      const u = users.find((x) => x.telegram_id === telegramId)
+      rowsMap[telegramId] = {
+        telegramId,
+        name: u?.full_name || u?.telegram_user_name || fallbackName || telegramId,
+        handle: u?.telegram_user_name ?? fallbackHandle,
+        perSession: {},
+        perAdditionalCost: {},
+        periodWeight: 0,
+      }
+    }
+    return rowsMap[telegramId]
+  }
+
   for (const s of sessionsSorted) {
     const parts = participantsBySession[s.id] ?? []
     for (const p of parts) {
       const tid = p.user_telegram_id
       const w = 1 + (p.additional_participants || 0)
-      if (!rowsMap[tid]) {
-        const u = users.find((x) => x.telegram_id === tid)
-        rowsMap[tid] = {
-          telegramId: tid,
-          name: u?.full_name || u?.telegram_user_name || p.user_name || tid,
-          handle: u?.telegram_user_name ?? null,
-          perSession: {},
-          periodWeight: 0,
-        }
-      }
-      rowsMap[tid].perSession[s.id] = (rowsMap[tid].perSession[s.id] || 0) + w
-      rowsMap[tid].periodWeight += w
+      const row = ensureRow(tid, p.user_name)
+      row.perSession[s.id] = (row.perSession[s.id] || 0) + w
+      row.periodWeight += w
+    }
+  }
+
+  for (const cost of additionalCostsSorted) {
+    const parts = additionalCostParticipantsByCost[cost.id] ?? []
+    for (const p of parts) {
+      const tid = p.user_telegram_id
+      const w = p.weight || 0
+      const row = ensureRow(tid, p.full_name || p.user_name, p.user_name)
+      row.perAdditionalCost[cost.id] = (row.perAdditionalCost[cost.id] || 0) + w
     }
   }
 
@@ -103,7 +141,11 @@ export default function MoneyMatrix({
   }
 
   const rows = Object.values(rowsMap)
-    .filter((r) => r.periodWeight > 0)
+    .filter((r) =>
+      r.periodWeight > 0
+      || Object.values(r.perAdditionalCost).some((w) => w > 0)
+      || (moneyByPlayer[r.telegramId] ?? 0) > 0
+    )
     .sort((a, b) => (moneyByPlayer[b.telegramId] ?? 0) - (moneyByPlayer[a.telegramId] ?? 0))
 
   const periodTotalWeight = rows.reduce((a, r) => a + r.periodWeight, 0)
@@ -112,7 +154,7 @@ export default function MoneyMatrix({
     return <div className="empty-state">No participants yet.</div>
   }
 
-  const sessionColCount = sessionsSorted.length + (showShuttlecockCol ? 1 : 0)
+  const sessionColCount = sessionsSorted.length + (showShuttlecockCol ? 1 : 0) + additionalCostsSorted.length
   const shuttleLabel = `${shuttlecockTubes} tube${shuttlecockTubes === 1 ? '' : 's'} of shuttle cock`
 
   return (
@@ -140,6 +182,17 @@ export default function MoneyMatrix({
                 </span>
               </th>
             )}
+            {additionalCostsSorted.map((cost) => (
+              <th key={cost.id}>
+                <span className="col-header-block">
+                  <span className="col-header-title">{cost.name}</span>
+                  <span className="col-header-meta">Price: €{cost.total_amount.toFixed(2)}</span>
+                  <span className="col-header-meta">
+                    Shares: {cost.total_weight ?? (additionalCostParticipantsByCost[cost.id] ?? []).reduce((a, p) => a + (p.weight || 0), 0)}
+                  </span>
+                </span>
+              </th>
+            ))}
             <th className="col-total">Total</th>
             {closed && <th>Paid</th>}
           </tr>
@@ -159,6 +212,11 @@ export default function MoneyMatrix({
                   {r.periodWeight}
                 </td>
               )}
+              {additionalCostsSorted.map((cost) => {
+                const w = r.perAdditionalCost[cost.id] || 0
+                const cls = 'cell-weight' + (w > 0 ? ' active' : '') + (w > 1 ? ' plus' : '')
+                return <td key={cost.id} className={cls}>{w > 0 ? w : ''}</td>
+              })}
               <td className="cell-num cell-money col-total">
                 €{(moneyByPlayer[r.telegramId] ?? 0).toFixed(2)}
               </td>

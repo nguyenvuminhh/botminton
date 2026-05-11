@@ -8,8 +8,11 @@ from schemas.periods import Periods
 from schemas.sessions import Sessions
 from schemas.session_participants import SessionParticipants
 from schemas.shuttlecock_batches import ShuttlecockBatches
+from schemas.additional_cost_participants import AdditionalCostParticipants
+from schemas.additional_costs import AdditionalCosts
 from schemas.users import Users
 from schemas.venues import Venues
+from tests.test_additional_costs import test_additional_costs_crud
 from tests.test_basic import test_basic_functionality
 from tests.test_calculations import test_session_cost_calculation
 from tests.test_users import test_users_crud
@@ -31,6 +34,8 @@ def clear_database():
     Sessions.drop_collection()
     SessionParticipants.drop_collection()
     ShuttlecockBatches.drop_collection()
+    AdditionalCostParticipants.drop_collection()
+    AdditionalCosts.drop_collection()
     Venues.drop_collection()
     print("✅ Database cleared")
 
@@ -82,6 +87,10 @@ def run_all_tests():
     # Test 12: Calculation Service
     print("\n📋 Test 12: Calculation Service")
     test_session_cost_calculation()
+
+    # Test 13: Additional Costs CRUD
+    print("\n📋 Test 13: Additional Costs CRUD")
+    test_additional_costs_crud()
 
     print("\n🎉 All tests completed!")
 

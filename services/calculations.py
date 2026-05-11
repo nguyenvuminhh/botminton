@@ -10,6 +10,9 @@ Shuttlecock cost per player (period-level):
     total_shuttlecock_cost = Σ batch.total_price for all batches in period
     period_total_weight = Σ player_weight across all sessions in period
     player_shuttlecock_cost = (player_period_weight / period_total_weight) × total_shuttlecock_cost
+
+Additional cost per selected player (period-level):
+    cost_share = cost.total_amount × selected_player_weight / selected_cost_total_weight
 """
 
 from datetime import date as dt_date
@@ -19,6 +22,7 @@ from services.session_participants import SessionParticipantService
 from services.sessions import SessionService
 from services.periods import PeriodService
 from services.shuttlecock_batches import ShuttlecockBatchService
+from services.additional_costs import calculate_additional_cost_shares
 from services.users import UserService
 import logging
 
@@ -26,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 
 class CalculationService:
+    @staticmethod
+    def _participant_weight(participant) -> int:
+        return 1 + (participant.additional_participants or 0)
 
     @staticmethod
     def calculate_session_costs(session_date: str) -> dict[str, float]:
@@ -73,14 +80,33 @@ class CalculationService:
             return None
 
         sessions = SessionService.list_sessions_by_period_id(period_start_date)
+        participants = SessionParticipantService.list_participants_by_sessions(sessions)
+        participants_by_session: dict[str, list] = {}
+        for participant in participants:
+            session = getattr(participant, "session", None)
+            if not session:
+                continue
+            participants_by_session.setdefault(str(session.id), []).append(participant)  # type: ignore
 
         # --- Courts calculation ---
         player_courts: dict[str, float] = {}
         for session in sessions:
-            session_date = session.date.isoformat()  # type: ignore
-            costs = CalculationService.calculate_session_costs(session_date)
-            for tid, amount in costs.items():
-                player_courts[tid] = player_courts.get(tid, 0.0) + amount
+            session_participants = participants_by_session.get(str(session.id), [])  # type: ignore
+            if not session.venue or not session.slots or not session_participants:  # type: ignore
+                continue
+
+            session_total: float = session.venue.price_per_slot * session.slots  # type: ignore
+            total_weight = sum(CalculationService._participant_weight(p) for p in session_participants)
+            if total_weight == 0:
+                continue
+
+            per_unit = session_total / total_weight
+            for participant in session_participants:
+                if not participant.user:  # type: ignore
+                    continue
+                tid = str(participant.user.telegram_id)  # type: ignore
+                weight = CalculationService._participant_weight(participant)
+                player_courts[tid] = player_courts.get(tid, 0.0) + (per_unit * weight)
 
         # --- Shuttlecock calculation ---
         total_shuttlecock_cost = ShuttlecockBatchService.get_total_shuttlecock_cost_for_period(period_start_date)
@@ -88,11 +114,11 @@ class CalculationService:
         # Weight = sum of (1 + additional) across ALL sessions attended
         player_period_weight: dict[str, float] = {}
         for session in sessions:
-            session_date = session.date.isoformat()  # type: ignore
-            participants = SessionParticipantService.list_participants_by_session(session_date)
-            for p in participants:
+            for p in participants_by_session.get(str(session.id), []):  # type: ignore
+                if not p.user:  # type: ignore
+                    continue
                 tid = str(p.user.telegram_id)  # type: ignore
-                weight = 1 + (p.additional_participants or 0)
+                weight = CalculationService._participant_weight(p)
                 player_period_weight[tid] = player_period_weight.get(tid, 0.0) + weight
 
         period_total_weight = sum(player_period_weight.values())
@@ -102,13 +128,24 @@ class CalculationService:
             for tid, weight in player_period_weight.items():
                 player_shuttlecock[tid] = (weight / period_total_weight) * total_shuttlecock_cost
 
+        # --- Additional costs calculation ---
+        player_additional_costs = calculate_additional_cost_shares(period_start_date)
+
         # --- Merge ---
-        all_player_ids = set(player_courts.keys()) | set(player_shuttlecock.keys())
+        all_player_ids = set(player_courts.keys()) | set(player_shuttlecock.keys()) | set(player_additional_costs.keys())
+        users_by_id = {
+            str(user.telegram_id): user  # type: ignore
+            for user in UserService.list_users_by_telegram_ids(list(all_player_ids))
+        }
 
         personal_entries: list[PersonalPeriodMoney] = []
         for tid in all_player_ids:
-            total = player_courts.get(tid, 0.0) + player_shuttlecock.get(tid, 0.0)
-            user = UserService.get_user_by_telegram_id(tid)
+            total = (
+                player_courts.get(tid, 0.0)
+                + player_shuttlecock.get(tid, 0.0)
+                + player_additional_costs.get(tid, 0.0)
+            )
+            user = users_by_id.get(tid)
             username = user.telegram_user_name if user else tid  # type: ignore
             personal_entries.append(
                 PersonalPeriodMoney(

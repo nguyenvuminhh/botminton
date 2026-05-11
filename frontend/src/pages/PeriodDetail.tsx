@@ -35,6 +35,22 @@ interface ShuttlecockUse {
   price_each: number
   tubes_used: number
 }
+interface AdditionalCost {
+  id: string
+  period_start_date: string | null
+  name: string
+  total_amount: number
+  participant_count: number
+  total_weight: number
+}
+interface AdditionalCostParticipant {
+  id: string
+  additional_cost_id: string
+  user_telegram_id: string
+  user_name: string | null
+  full_name: string | null
+  weight: number
+}
 interface ReportEntry { person_id: string; telegram_user_name: string; full_name: string | null; period_money: number }
 interface Report { period_start_date: string; period_end_date: string; total_period_money: number; personal_period_money: ReportEntry[] }
 interface Payment {
@@ -63,6 +79,8 @@ export default function PeriodDetail() {
   const [users, setUsers] = useState<User[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
   const [uses, setUses] = useState<ShuttlecockUse[]>([])
+  const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([])
+  const [additionalCostParticipantsByCost, setAdditionalCostParticipantsByCost] = useState<Record<string, AdditionalCostParticipant[]>>({})
   const [report, setReport] = useState<Report | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
 
@@ -78,6 +96,12 @@ export default function PeriodDetail() {
 
   const [useBatchId, setUseBatchId] = useState('')
   const [useTubes, setUseTubes] = useState('1')
+
+  const [newCostName, setNewCostName] = useState('')
+  const [newCostAmount, setNewCostAmount] = useState('')
+  const [selectedAdditionalCostId, setSelectedAdditionalCostId] = useState<string | null>(null)
+  const [newCostPersonTelegramId, setNewCostPersonTelegramId] = useState('')
+  const [newCostPersonWeight, setNewCostPersonWeight] = useState('1')
 
   const [closeOpen, setCloseOpen] = useState(false)
   const [closeEndDate, setCloseEndDate] = useState('')
@@ -98,6 +122,9 @@ export default function PeriodDetail() {
   const loadUses = useCallback(() => {
     api.get<ShuttlecockUse[]>(`/periods/${startDate}/shuttlecocks`).then((r) => setUses(r.data))
   }, [startDate])
+  const loadAdditionalCosts = useCallback(() => {
+    api.get<AdditionalCost[]>(`/periods/${startDate}/additional-costs`).then((r) => setAdditionalCosts(r.data))
+  }, [startDate])
   const loadReport = useCallback(() => {
     api.get<Report>(`/payments/report/${startDate}`).then((r) => setReport(r.data)).catch(() => setReport(null))
   }, [startDate])
@@ -109,12 +136,13 @@ export default function PeriodDetail() {
     loadPeriod()
     loadSessions()
     loadUses()
+    loadAdditionalCosts()
     loadReport()
     loadPayments()
     api.get<Venue[]>('/venues').then((r) => setVenues(r.data))
     api.get<User[]>('/users').then((r) => setUsers(r.data))
     api.get<Batch[]>('/shuttlecocks').then((r) => setBatches(r.data))
-  }, [startDate, loadPeriod, loadSessions, loadUses, loadReport, loadPayments])
+  }, [startDate, loadPeriod, loadSessions, loadUses, loadAdditionalCosts, loadReport, loadPayments])
 
   const loadParticipants = useCallback(async (sessionsList: Session[]) => {
     if (sessionsList.length === 0) { setParticipantsBySession({}); return }
@@ -127,6 +155,20 @@ export default function PeriodDetail() {
   }, [])
 
   useEffect(() => { loadParticipants(sessions) }, [sessions, loadParticipants])
+
+  const loadAdditionalCostParticipants = useCallback(async (costsList: AdditionalCost[]) => {
+    if (costsList.length === 0) { setAdditionalCostParticipantsByCost({}); return }
+    const results = await Promise.all(
+      costsList.map((cost) =>
+        api
+          .get<AdditionalCostParticipant[]>(`/periods/${startDate}/additional-costs/${cost.id}/participants`)
+          .then((r) => [cost.id, r.data] as const)
+      )
+    )
+    setAdditionalCostParticipantsByCost(Object.fromEntries(results))
+  }, [startDate])
+
+  useEffect(() => { loadAdditionalCostParticipants(additionalCosts) }, [additionalCosts, loadAdditionalCostParticipants])
 
   async function handleAddSession(e: React.FormEvent) {
     e.preventDefault()
@@ -205,6 +247,60 @@ export default function PeriodDetail() {
     api.get<Batch[]>('/shuttlecocks').then((r) => setBatches(r.data))
   }
 
+  async function handleAddAdditionalCost(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newCostName.trim()) return
+    await api.post(`/periods/${startDate}/additional-costs`, {
+      name: newCostName,
+      total_amount: parseFloat(newCostAmount) || 0,
+    })
+    setNewCostName(''); setNewCostAmount('')
+    loadAdditionalCosts(); loadReport()
+  }
+
+  async function handleUpdateAdditionalCost(cost: AdditionalCost) {
+    const name = prompt('Name:', cost.name)
+    if (name === null) return
+    const amount = prompt('Total amount:', String(cost.total_amount))
+    if (amount === null) return
+    await api.put(`/periods/${startDate}/additional-costs/${cost.id}`, {
+      name,
+      total_amount: parseFloat(amount) || 0,
+    })
+    loadAdditionalCosts(); loadReport()
+  }
+
+  async function handleDeleteAdditionalCost(cost: AdditionalCost) {
+    if (!confirm(`Delete additional cost "${cost.name}"?`)) return
+    await api.delete(`/periods/${startDate}/additional-costs/${cost.id}`)
+    if (selectedAdditionalCostId === cost.id) setSelectedAdditionalCostId(null)
+    loadAdditionalCosts(); loadReport()
+  }
+
+  async function handleAddAdditionalCostPerson(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedAdditionalCostId || !newCostPersonTelegramId) return
+    await api.post(`/periods/${startDate}/additional-costs/${selectedAdditionalCostId}/participants`, {
+      user_telegram_id: newCostPersonTelegramId,
+      weight: parseFloat(newCostPersonWeight) || 1,
+    })
+    setNewCostPersonTelegramId(''); setNewCostPersonWeight('1')
+    loadAdditionalCosts(); loadReport()
+    const r = await api.get<AdditionalCostParticipant[]>(`/periods/${startDate}/additional-costs/${selectedAdditionalCostId}/participants`)
+    setAdditionalCostParticipantsByCost((prev) => ({ ...prev, [selectedAdditionalCostId]: r.data }))
+  }
+
+  async function handleRemoveAdditionalCostPerson(participantId: string) {
+    const cost = additionalCosts.find((x) => x.id === selectedAdditionalCostId)
+    if (!cost) return
+    await api.delete(`/periods/${startDate}/additional-costs/${cost.id}/participants/${participantId}`)
+    loadAdditionalCosts(); loadReport()
+    setAdditionalCostParticipantsByCost((prev) => ({
+      ...prev,
+      [cost.id]: (prev[cost.id] ?? []).filter((p) => p.id !== participantId),
+    }))
+  }
+
   async function handleTogglePaid(p: Payment) {
     const endpoint = p.has_paid ? '/payments/mark-unpaid' : '/payments/mark-paid'
     await api.post(endpoint, { period_start_date: startDate, user_telegram_id: p.user_telegram_id })
@@ -276,6 +372,11 @@ export default function PeriodDetail() {
   const totalMoney = report?.total_period_money ?? 0
   const shuttlecockTotal = uses.reduce((a, u) => a + u.price_each * u.tubes_used, 0)
   const shuttlecockTubes = uses.reduce((a, u) => a + u.tubes_used, 0)
+  const additionalCostsTotal = additionalCosts.reduce((a, cost) => a + cost.total_amount, 0)
+  const selectedAdditionalCost = additionalCosts.find((cost) => cost.id === selectedAdditionalCostId) || null
+  const additionalCostParticipants = selectedAdditionalCostId
+    ? (additionalCostParticipantsByCost[selectedAdditionalCostId] ?? [])
+    : []
 
   return (
     <>
@@ -483,6 +584,127 @@ export default function PeriodDetail() {
         </div>
       </div>
 
+      {/* Additional costs */}
+      <div className="card">
+        <div className="card-header">
+          <h3>Additional costs</h3>
+          <span className="chip">Subtotal €{additionalCostsTotal.toFixed(2)}</span>
+        </div>
+        <form onSubmit={handleAddAdditionalCost} className="form-row" style={{ marginBottom: 18 }}>
+          <div className="field" style={{ minWidth: 240, flex: 1 }}>
+            <label className="field-label">Name</label>
+            <input
+              value={newCostName}
+              onChange={(e) => setNewCostName(e.target.value)}
+              className="input"
+              placeholder="e.g. key deposit"
+              required
+            />
+          </div>
+          <div className="field" style={{ minWidth: 120 }}>
+            <label className="field-label">Cost</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={newCostAmount}
+              onChange={(e) => setNewCostAmount(e.target.value)}
+              className="input"
+              placeholder="0.00"
+            />
+          </div>
+          <button type="submit" className="btn btn-primary">Add cost</button>
+        </form>
+
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div className="table-wrap" style={{ flex: '1 1 460px', minWidth: 0 }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th className="cell-num">People</th>
+                  <th className="cell-num">Shares</th>
+                  <th className="cell-num">Cost</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {additionalCosts.map((cost) => (
+                  <tr
+                    key={cost.id}
+                    onClick={() => setSelectedAdditionalCostId(cost.id === selectedAdditionalCostId ? null : cost.id)}
+                    className={'row-clickable' + (cost.id === selectedAdditionalCostId ? ' row-selected' : '')}
+                  >
+                    <td>{cost.name}</td>
+                    <td className="cell-num">{cost.participant_count}</td>
+                    <td className="cell-num">{cost.total_weight}</td>
+                    <td className="cell-num cell-money">€{cost.total_amount.toFixed(2)}</td>
+                    <td className="cell-actions">
+                      <button onClick={(e) => { e.stopPropagation(); handleUpdateAdditionalCost(cost) }} className="btn btn-sm btn-ghost">Edit</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteAdditionalCost(cost) }} className="btn btn-sm btn-danger">Del</button>
+                    </td>
+                  </tr>
+                ))}
+                {additionalCosts.length === 0 && (
+                  <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 24 }}>No additional costs.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {selectedAdditionalCost && (
+            <div style={{ width: 360, flexShrink: 0 }}>
+              <h4 style={{ marginBottom: 10 }}>People · {selectedAdditionalCost.name}</h4>
+              <form onSubmit={handleAddAdditionalCostPerson} className="form-row" style={{ marginBottom: 10 }}>
+                <select
+                  className="select"
+                  value={newCostPersonTelegramId}
+                  onChange={(e) => setNewCostPersonTelegramId(e.target.value)}
+                  style={{ flex: 1, minWidth: 150 }}
+                >
+                  <option value="">— add person —</option>
+                  {users
+                    .filter((u) => !additionalCostParticipants.some((p) => p.user_telegram_id === u.telegram_id))
+                    .map((u) => <option key={u.telegram_id} value={u.telegram_id}>{userLabel(u)}</option>)}
+                </select>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={newCostPersonWeight}
+                  onChange={(e) => setNewCostPersonWeight(e.target.value)}
+                  className="input"
+                  style={{ width: 78 }}
+                  title="Weight"
+                />
+                <button type="submit" className="btn btn-primary btn-sm" disabled={!newCostPersonTelegramId}>Add</button>
+              </form>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr><th>User</th><th className="cell-num">Weight</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {additionalCostParticipants.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.full_name || p.user_name || p.user_telegram_id}</td>
+                        <td className="cell-num">{p.weight}</td>
+                        <td className="cell-actions">
+                          <button onClick={() => handleRemoveAdditionalCostPerson(p.id)} className="btn btn-sm btn-danger">×</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {additionalCostParticipants.length === 0 && (
+                      <tr><td colSpan={3} className="muted" style={{ textAlign: 'center', padding: 20 }}>No people selected.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Money split */}
       <div className="card">
         <div className="card-header">
@@ -513,6 +735,8 @@ export default function PeriodDetail() {
           participantsBySession={participantsBySession}
           shuttlecockTotal={shuttlecockTotal}
           shuttlecockTubes={shuttlecockTubes}
+          additionalCosts={additionalCosts}
+          additionalCostParticipantsByCost={additionalCostParticipantsByCost}
           totalPeriodMoney={totalMoney}
           personalReport={report?.personal_period_money}
           payments={closed ? payments : undefined}

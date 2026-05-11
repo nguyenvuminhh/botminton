@@ -50,6 +50,20 @@ interface ShuttlecockUse {
   price_each: number
   tubes_used: number
 }
+interface AdditionalCost {
+  id: string
+  name: string
+  total_amount: number
+  total_weight: number
+}
+interface AdditionalCostParticipant {
+  id: string
+  additional_cost_id: string
+  user_telegram_id: string
+  user_name: string | null
+  full_name: string | null
+  weight: number
+}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -62,6 +76,8 @@ export default function Home() {
   const [participantsBySession, setParticipantsBySession] = useState<Record<string, Participant[]>>({})
   const [shuttlecockTotal, setShuttlecockTotal] = useState(0)
   const [shuttlecockTubes, setShuttlecockTubes] = useState(0)
+  const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([])
+  const [additionalCostParticipantsByCost, setAdditionalCostParticipantsByCost] = useState<Record<string, AdditionalCostParticipant[]>>({})
   const [users, setUsers] = useState<User[]>([])
 
   const loadPayments = useCallback((startDate: string) => {
@@ -94,28 +110,38 @@ export default function Home() {
 
     if (open) {
       try {
-        const [reportRes, sessionsRes, usesRes] = await Promise.all([
+        const [reportRes, sessionsRes, usesRes, additionalCostsRes] = await Promise.all([
           api.get<Report>(`/payments/report/${open.start_date}`),
           api.get<Session[]>(`/sessions?period=${open.start_date}`),
           api.get<ShuttlecockUse[]>(`/periods/${open.start_date}/shuttlecocks`),
+          api.get<AdditionalCost[]>(`/periods/${open.start_date}/additional-costs`),
         ])
         setReport(reportRes.data)
         setSessions(sessionsRes.data)
         setShuttlecockTotal(usesRes.data.reduce((a, u) => a + u.price_each * u.tubes_used, 0))
         setShuttlecockTubes(usesRes.data.reduce((a, u) => a + u.tubes_used, 0))
+        setAdditionalCosts(additionalCostsRes.data)
 
-        const partResults = await Promise.all(
-          sessionsRes.data.map((s) =>
+        const [partResults, costPartResults] = await Promise.all([
+          Promise.all(sessionsRes.data.map((s) =>
             api.get<Participant[]>(`/participants?session_date=${s.date}`).then((r) => [s.id, r.data] as const)
-          )
-        )
+          )),
+          Promise.all(additionalCostsRes.data.map((cost) =>
+            api
+              .get<AdditionalCostParticipant[]>(`/periods/${open.start_date}/additional-costs/${cost.id}/participants`)
+              .then((r) => [cost.id, r.data] as const)
+          )),
+        ])
         setParticipantsBySession(Object.fromEntries(partResults))
+        setAdditionalCostParticipantsByCost(Object.fromEntries(costPartResults))
       } catch {
         setReport(null)
         setSessions([])
         setParticipantsBySession({})
         setShuttlecockTotal(0)
         setShuttlecockTubes(0)
+        setAdditionalCosts([])
+        setAdditionalCostParticipantsByCost({})
       }
     } else {
       setReport(null)
@@ -123,6 +149,8 @@ export default function Home() {
       setParticipantsBySession({})
       setShuttlecockTotal(0)
       setShuttlecockTubes(0)
+      setAdditionalCosts([])
+      setAdditionalCostParticipantsByCost({})
     }
     setLoading(false)
   }, [])
@@ -232,6 +260,8 @@ export default function Home() {
             participantsBySession={participantsBySession}
             shuttlecockTotal={shuttlecockTotal}
             shuttlecockTubes={shuttlecockTubes}
+            additionalCosts={additionalCosts}
+            additionalCostParticipantsByCost={additionalCostParticipantsByCost}
             totalPeriodMoney={report?.total_period_money ?? 0}
             personalReport={report?.personal_period_money}
             users={users}

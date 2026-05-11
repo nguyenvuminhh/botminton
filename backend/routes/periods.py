@@ -6,9 +6,21 @@ from telegram import Bot
 
 from backend.deps import require_admin
 from config import BOT_TOKEN, COMMON_GROUP_CHAT_ID, PUBLIC_BASE_URL
+from models.period_money import PeriodMoneyReport
 from schemas.period_shuttlecock_uses import PeriodShuttlecockUses
 from schemas.periods import Periods
+from schemas.additional_cost_participants import AdditionalCostParticipants
+from schemas.additional_costs import AdditionalCosts
 from services.calculations import calculate_period_report
+from services.additional_costs import (
+    add_additional_cost_participant,
+    create_additional_cost,
+    delete_additional_cost,
+    delete_additional_cost_participant,
+    list_additional_cost_participants,
+    list_additional_costs_by_period,
+    update_additional_cost,
+)
 from services.period_moneys import upsert_period_money
 from services.period_shuttlecock_uses import (
     create_use,
@@ -33,12 +45,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def _post_period_closed_message(start_date: str) -> bool:
-    period = get_period(start_date)
+async def _post_period_closed_message(
+    start_date: str,
+    period: Periods | None = None,
+    report: PeriodMoneyReport | None = None,
+) -> bool:
+    period = period or get_period(start_date)
     if not period:
         return False
 
-    report = calculate_period_report(start_date)
+    if report is None:
+        report = calculate_period_report(start_date)
     if not report:
         return False
 
@@ -49,7 +66,7 @@ async def _post_period_closed_message(start_date: str) -> bool:
     message = get_period_closed_message(report, first_session_date, last_session_date)
 
     token = ensure_share_token(period)
-    period.share_snapshot = build_period_matrix(period)  # type: ignore
+    period.share_snapshot = build_period_matrix(period, report=report)  # type: ignore
     period.save()
 
     if PUBLIC_BASE_URL:
@@ -144,6 +161,8 @@ async def finalize_period(start_date: str, body: FinalizePeriodBody, _: str = De
     closed = update_period(start_date, end_date=body.end_date)
     if not closed:
         raise HTTPException(status_code=404, detail="Failed to close period")
+    if closed.end_date:  # type: ignore
+        report.period_end_date = closed.end_date  # type: ignore
 
     new_period = create_period(body.new_period_start_date)
     if not new_period:
@@ -152,7 +171,7 @@ async def finalize_period(start_date: str, body: FinalizePeriodBody, _: str = De
             detail=f"Period closed, but could not create new period starting {body.new_period_start_date} (already exists?)",
         )
 
-    group_posted = await _post_period_closed_message(start_date)
+    group_posted = await _post_period_closed_message(start_date, period=closed, report=report)
 
     return {
         "closed_period": serialize(closed),
@@ -213,3 +232,108 @@ def add_period_shuttlecock(
 def remove_period_shuttlecock(start_date: str, use_id: str, _: str = Depends(require_admin)):
     if not delete_use(use_id):
         raise HTTPException(status_code=404, detail="Shuttlecock use not found")
+
+
+class CreateAdditionalCostBody(BaseModel):
+    name: str
+    total_amount: float
+
+
+class UpdateAdditionalCostBody(BaseModel):
+    name: str | None = None
+    total_amount: float | None = None
+
+
+class AddAdditionalCostParticipantBody(BaseModel):
+    user_telegram_id: str
+    weight: float = 1.0
+
+
+def _serialize_additional_cost(cost: AdditionalCosts) -> dict:
+    participants = list_additional_cost_participants(str(cost.id))  # type: ignore
+    total_weight = sum((p.weight or 0.0) for p in participants)  # type: ignore
+    return {
+        "id": str(cost.id),  # type: ignore
+        "period_start_date": cost.period.start_date.isoformat() if cost.period and cost.period.start_date else None,  # type: ignore
+        "name": cost.name,  # type: ignore
+        "total_amount": cost.total_amount,  # type: ignore
+        "participant_count": len(participants),
+        "total_weight": total_weight,
+    }
+
+
+def _serialize_additional_cost_participant(participant: AdditionalCostParticipants) -> dict:
+    return {
+        "id": str(participant.id),  # type: ignore
+        "additional_cost_id": str(participant.additional_cost.id) if participant.additional_cost else None,  # type: ignore
+        "user_telegram_id": participant.user.telegram_id if participant.user else None,  # type: ignore
+        "user_name": participant.user.telegram_user_name if participant.user else None,  # type: ignore
+        "full_name": participant.user.full_name if participant.user else None,  # type: ignore
+        "weight": participant.weight,  # type: ignore
+    }
+
+
+@router.get("/{start_date}/additional-costs")
+def list_period_additional_costs(start_date: str, _: str = Depends(require_admin)):
+    return [_serialize_additional_cost(cost) for cost in list_additional_costs_by_period(start_date)]
+
+
+@router.post("/{start_date}/additional-costs", status_code=201)
+def add_period_additional_cost(
+    start_date: str,
+    body: CreateAdditionalCostBody,
+    _: str = Depends(require_admin),
+):
+    cost = create_additional_cost(start_date, body.name, body.total_amount)
+    if not cost:
+        raise HTTPException(status_code=400, detail="Could not create additional cost")
+    return _serialize_additional_cost(cost)
+
+
+@router.put("/{start_date}/additional-costs/{cost_id}")
+def edit_period_additional_cost(
+    start_date: str,
+    cost_id: str,
+    body: UpdateAdditionalCostBody,
+    _: str = Depends(require_admin),
+):
+    kwargs = {k: v for k, v in body.model_dump().items() if v is not None}
+    cost = update_additional_cost(cost_id, **kwargs)
+    if not cost:
+        raise HTTPException(status_code=404, detail="Additional cost not found or update failed")
+    return _serialize_additional_cost(cost)
+
+
+@router.delete("/{start_date}/additional-costs/{cost_id}", status_code=204)
+def remove_period_additional_cost(start_date: str, cost_id: str, _: str = Depends(require_admin)):
+    if not delete_additional_cost(cost_id):
+        raise HTTPException(status_code=404, detail="Additional cost not found")
+
+
+@router.get("/{start_date}/additional-costs/{cost_id}/participants")
+def list_period_additional_cost_people(start_date: str, cost_id: str, _: str = Depends(require_admin)):
+    return [_serialize_additional_cost_participant(p) for p in list_additional_cost_participants(cost_id)]
+
+
+@router.post("/{start_date}/additional-costs/{cost_id}/participants", status_code=201)
+def add_period_additional_cost_person(
+    start_date: str,
+    cost_id: str,
+    body: AddAdditionalCostParticipantBody,
+    _: str = Depends(require_admin),
+):
+    participant = add_additional_cost_participant(cost_id, body.user_telegram_id, body.weight)
+    if not participant:
+        raise HTTPException(status_code=400, detail="Could not add additional cost participant")
+    return _serialize_additional_cost_participant(participant)
+
+
+@router.delete("/{start_date}/additional-costs/{cost_id}/participants/{participant_id}", status_code=204)
+def remove_period_additional_cost_person(
+    start_date: str,
+    cost_id: str,
+    participant_id: str,
+    _: str = Depends(require_admin),
+):
+    if not delete_additional_cost_participant(participant_id):
+        raise HTTPException(status_code=404, detail="Additional cost participant not found")

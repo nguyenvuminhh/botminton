@@ -13,6 +13,18 @@ interface MatrixPayload {
   }[]>
   shuttlecock_total: number
   shuttlecock_tubes: number
+  additional_costs: {
+    id: string
+    name: string
+    total_amount: number
+    total_weight: number
+  }[]
+  additional_cost_participants_by_cost: Record<string, {
+    user_telegram_id: string
+    user_name: string | null
+    full_name: string | null
+    weight: number
+  }[]>
   total_period_money: number
   personal_report: {
     person_id: string
@@ -77,6 +89,8 @@ export default function SharedPeriod() {
               participantsBySession={data.participants_by_session}
               shuttlecockTotal={data.shuttlecock_total}
               shuttlecockTubes={data.shuttlecock_tubes}
+              additionalCosts={data.additional_costs}
+              additionalCostParticipantsByCost={data.additional_cost_participants_by_cost}
               totalPeriodMoney={data.total_period_money}
               personalReport={data.personal_report}
               users={data.users}

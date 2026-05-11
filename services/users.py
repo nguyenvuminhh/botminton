@@ -1,6 +1,6 @@
 from schemas.users import Users
 from mongoengine import DoesNotExist, MultipleObjectsReturned
-from typing import Optional, List, cast
+from typing import Optional, List, Sequence, cast
 import logging
 
 from utils.user import check_admin
@@ -100,6 +100,20 @@ class UserService:
             return []
 
     @staticmethod
+    def list_users_by_telegram_ids(telegram_ids: Sequence[str]) -> List[Users]:
+        try:
+            ids = list(dict.fromkeys(str(tid) for tid in telegram_ids if tid))
+            if not ids:
+                return []
+            users = list(Users.objects(telegram_id__in=ids))
+            logger.debug(f"Listed {len(users)} users by telegram IDs")
+            return users
+
+        except Exception as e:
+            logger.error(f"Failed to list users by telegram IDs: {e}")
+            return []
+
+    @staticmethod
     def get_user_by_username(username: str) -> Optional[Users]:
         """Look up a user by telegram_user_name (case-insensitive, strips leading @)."""
         try:
@@ -136,3 +150,6 @@ def delete_user(telegram_id: str) -> bool:
 
 def list_all_users(limit: int = 100, offset: int = 0) -> List[Users]:
     return UserService.list_all_users(limit, offset)
+
+def list_users_by_telegram_ids(telegram_ids: Sequence[str]) -> List[Users]:
+    return UserService.list_users_by_telegram_ids(telegram_ids)

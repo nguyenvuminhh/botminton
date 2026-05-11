@@ -1,16 +1,25 @@
 from datetime import datetime, timezone
 
+from models.period_money import PeriodMoneyReport
 from schemas.periods import Periods
+from services.additional_costs import list_additional_costs_by_period, list_participants_by_costs
 from services.calculations import calculate_period_report
 from services.period_shuttlecock_uses import list_uses_by_period
-from services.session_participants import list_session_participants
+from services.session_participants import list_participants_by_sessions
 from services.sessions import list_sessions_by_period
-from services.users import list_all_users
+from services.users import list_users_by_telegram_ids
 
 
-def build_period_matrix(period: Periods) -> dict:
+def build_period_matrix(period: Periods, report: PeriodMoneyReport | None = None) -> dict:
     start_date_iso = period.start_date.isoformat()  # type: ignore
     sessions = list_sessions_by_period(start_date_iso)
+    participants = list_participants_by_sessions(sessions)
+    participants_by_session: dict[str, list] = {}
+    for p in participants:
+        session = getattr(p, "session", None)
+        if not session:
+            continue
+        participants_by_session.setdefault(str(session.id), []).append(p)  # type: ignore
 
     sessions_out = []
     participants_out: dict[str, list[dict]] = {}
@@ -26,7 +35,7 @@ def build_period_matrix(period: Periods) -> dict:
             "date": sdate,
             "total_money": total_money,
         })
-        parts = list_session_participants(sdate) if sdate else []
+        parts = participants_by_session.get(sid, [])
         items = []
         for p in parts:
             tid = str(p.user.telegram_id) if p.user else None  # type: ignore
@@ -55,7 +64,42 @@ def build_period_matrix(period: Periods) -> dict:
         shuttlecock_tubes += tubes_used
     shuttlecock_total = round(shuttlecock_total, 2)
 
-    report = calculate_period_report(start_date_iso)
+    additional_costs_out = []
+    additional_cost_participants_out: dict[str, list[dict]] = {}
+    additional_costs = list_additional_costs_by_period(start_date_iso)
+    participants_by_cost: dict[str, list] = {}
+    for p in list_participants_by_costs(additional_costs):
+        cost = getattr(p, "additional_cost", None)
+        if not cost:
+            continue
+        participants_by_cost.setdefault(str(cost.id), []).append(p)  # type: ignore
+
+    for cost in additional_costs:
+        cost_id = str(cost.id)  # type: ignore
+        participants_for_cost = participants_by_cost.get(cost_id, [])
+        total_weight = sum((p.weight or 0.0) for p in participants_for_cost)  # type: ignore
+        additional_costs_out.append({
+            "id": cost_id,
+            "name": cost.name,  # type: ignore
+            "total_amount": cost.total_amount,  # type: ignore
+            "total_weight": total_weight,
+        })
+        items = []
+        for p in participants_for_cost:
+            tid = str(p.user.telegram_id) if p.user else None  # type: ignore
+            if not tid:
+                continue
+            user_ids.add(tid)
+            items.append({
+                "user_telegram_id": tid,
+                "user_name": p.user.telegram_user_name if p.user else None,  # type: ignore
+                "full_name": p.user.full_name if p.user else None,  # type: ignore
+                "weight": p.weight or 0.0,  # type: ignore
+            })
+        additional_cost_participants_out[cost_id] = items
+
+    if report is None:
+        report = calculate_period_report(start_date_iso)
     personal = []
     total_money = 0.0
     if report:
@@ -69,12 +113,9 @@ def build_period_matrix(period: Periods) -> dict:
             })
             user_ids.add(e.person_id)
 
-    all_users = list_all_users(limit=10000)
     users_out = []
-    for u in all_users:
+    for u in list_users_by_telegram_ids(list(user_ids)):
         tid = str(u.telegram_id)  # type: ignore
-        if tid not in user_ids:
-            continue
         users_out.append({
             "telegram_id": tid,
             "telegram_user_name": u.telegram_user_name,  # type: ignore
@@ -90,6 +131,8 @@ def build_period_matrix(period: Periods) -> dict:
         "participants_by_session": participants_out,
         "shuttlecock_total": shuttlecock_total,
         "shuttlecock_tubes": shuttlecock_tubes,
+        "additional_costs": additional_costs_out,
+        "additional_cost_participants_by_cost": additional_cost_participants_out,
         "total_period_money": total_money,
         "personal_report": personal,
         "users": users_out,

@@ -2,7 +2,7 @@ from schemas.session_participants import SessionParticipants
 from schemas.sessions import Sessions
 from schemas.users import Users
 from mongoengine import DoesNotExist, ValidationError
-from typing import Optional, List, cast
+from typing import Optional, List, Sequence, cast
 from datetime import date as dt_date
 import logging
 
@@ -173,6 +173,24 @@ class SessionParticipantService:
             return []
 
     @staticmethod
+    def list_participants_by_sessions(sessions: Sequence[Sessions]) -> List[SessionParticipants]:
+        """List all participants for a batch of sessions."""
+        try:
+            sessions_list = list(sessions)
+            if not sessions_list:
+                return []
+
+            participants = list(
+                SessionParticipants.objects.filter(session__in=sessions_list).select_related()  # type: ignore
+            )
+            logger.debug(f"Found {len(participants)} participants for {len(sessions_list)} sessions")
+            return participants
+
+        except Exception as e:
+            logger.error(f"Failed to list participants for sessions: {e}")
+            return []
+
+    @staticmethod
     def list_participants_by_user(user_telegram_id: str) -> List[SessionParticipants]:
         """List all sessions a user has participated in"""
         try:
@@ -245,6 +263,10 @@ def get_participant(participant_id: str) -> Optional[SessionParticipants]:
 def get_participant_by_user_and_session(user_telegram_id: str, session_date: str) -> Optional[SessionParticipants]:
     """Get a session participant by user and session"""
     return SessionParticipantService.get_participant_by_user_and_session(user_telegram_id, session_date)
+
+def list_participants_by_sessions(sessions: Sequence[Sessions]) -> List[SessionParticipants]:
+    """List participants for a batch of sessions"""
+    return SessionParticipantService.list_participants_by_sessions(sessions)
 
 def update_participant(participant_id: str, **kwargs) -> Optional[SessionParticipants]:
     """Update a session participant by ID"""

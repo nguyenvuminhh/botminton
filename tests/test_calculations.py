@@ -38,9 +38,22 @@ BATCH_DATE = "2020-06-01"
 USER_1 = "calc_user_1"
 USER_2 = "calc_user_2"
 USER_3 = "calc_user_3"
+ADDITIONAL_COST_NAME = "Test additional cost"
+
+
+def cleanup_additional_costs():
+    try:
+        from schemas.additional_cost_participants import AdditionalCostParticipants
+        from schemas.additional_costs import AdditionalCosts
+    except Exception:
+        return
+
+    AdditionalCostParticipants.objects.delete()  # type: ignore
+    AdditionalCosts.objects.delete()  # type: ignore
 
 
 def setup():
+    cleanup_additional_costs()
     delete_batch(BATCH_DATE)
     for d in [SESSION_A, SESSION_B]:
         delete_session(d)
@@ -145,5 +158,61 @@ def test_session_cost_calculation():
         db_manager.disconnect()
 
 
+def test_period_report_includes_weighted_additional_costs():
+    try:
+        db_manager.connect()
+        setup()
+
+        print("\n🧪 Testing Weighted Additional Cost Calculation")
+        print("=" * 52)
+
+        create_user(USER_1, "user1")
+        create_user(USER_2, "user2")
+        create_user(USER_3, "user3")
+        venue = create_venue(VENUE_NAME, "TestLoc", 30.0)
+        assert venue is not None
+
+        period = create_period(PERIOD)
+        assert period is not None
+
+        session = create_session(SESSION_A, PERIOD, venue_id=VENUE_NAME, slots=1.0)
+        assert session is not None
+        create_participant(USER_1, SESSION_A, additional_participants=0)
+        create_participant(USER_2, SESSION_A, additional_participants=0)
+
+        from services.additional_costs import create_additional_cost, add_additional_cost_participant
+
+        cost = create_additional_cost(PERIOD, ADDITIONAL_COST_NAME, 30.0)
+        assert cost is not None
+        assert add_additional_cost_participant(str(cost.id), USER_2, 2.0) is not None  # type: ignore
+        assert add_additional_cost_participant(str(cost.id), USER_3, 1.0) is not None  # type: ignore
+
+        report = calculate_period_report(PERIOD)
+        assert report is not None, "Failed to generate period report"
+
+        by_id = {p.person_id: p.period_money for p in report.personal_period_money}
+        assert by_id[USER_1] == 15.0
+        assert by_id[USER_2] == 35.0
+        assert by_id[USER_3] == 10.0
+        assert report.total_period_money == 60.0
+
+        print("✅ Additional cost totals:")
+        print(f"   user1={by_id[USER_1]:.2f}")
+        print(f"   user2={by_id[USER_2]:.2f}")
+        print(f"   user3={by_id[USER_3]:.2f}")
+
+        setup()
+        print("\n🎉 Weighted additional cost calculation test passed!")
+
+    except Exception as e:
+        logger.error(f"Test failed: {e}")
+        print(f"❌ Test failed: {e}")
+        setup()
+        raise
+    finally:
+        db_manager.disconnect()
+
+
 if __name__ == "__main__":
     test_session_cost_calculation()
+    test_period_report_includes_weighted_additional_costs()
