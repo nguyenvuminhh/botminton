@@ -20,7 +20,8 @@ class PeriodService:
 
             period_data: dict = {
                 'start_date': dt_date.fromisoformat(start_date),
-                'total_money': total_money
+                'total_money': total_money,
+                'share_token': secrets.token_urlsafe(24),
             }
 
             if end_date:
@@ -31,8 +32,8 @@ class PeriodService:
             logger.info(f"Created period starting {start_date}")
             return period
 
-        except NotUniqueError:
-            logger.error(f"Period with start_date {start_date} already exists (race condition)")
+        except NotUniqueError as e:
+            logger.error(f"Duplicate key while creating period {start_date}: {e}")
         except ValidationError as e:
             logger.error(f"Validation error creating period: {e}")
         except Exception as e:
