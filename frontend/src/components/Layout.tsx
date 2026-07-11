@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth'
+import { useAuth } from '../auth-context'
 import type { ReactNode } from 'react'
 
 const navItems = [

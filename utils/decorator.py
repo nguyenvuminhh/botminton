@@ -4,7 +4,6 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from config import LOG_GROUP_CHAT_ID
 from services.users import create_user, get_user, update_user
-from utils.user import check_admin
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ def upsert_user(telegram_user) -> None:
     if not get_user(telegram_id):
         create_user(telegram_id=telegram_id, telegram_user_name=username, full_name=full_name)
     else:
-        update_user(telegram_id, telegram_user_name=username, full_name=full_name, is_admin=check_admin(telegram_id))
+        update_user(telegram_id, telegram_user_name=username, full_name=full_name)
 
 
 def user_insertion_middleware(func):

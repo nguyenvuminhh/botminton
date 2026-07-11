@@ -46,7 +46,6 @@ export default function SharedPeriod() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
     axios
       .get<MatrixPayload>(`/api/public/periods/${token}/matrix`)
       .then((r) => { setData(r.data); setError('') })

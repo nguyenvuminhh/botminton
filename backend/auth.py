@@ -1,20 +1,30 @@
 import random
 import time
+from typing import TypedDict
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from jose import jwt
 from pydantic import BaseModel
 
+from backend.deps import require_admin
 from config import ADMIN_USER_ID, BOT_TOKEN, JWT_SECRET
+from services.users import get_user, list_admin_users
+from utils.user import check_admin, check_super_admin
 
 router = APIRouter()
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_SECONDS = 12 * 3600
 OTP_EXPIRE_SECONDS = 300  # 5 minutes
 
-# In-memory OTP store: {otp: expiry_timestamp}
-_otp_store: dict[str, float] = {}
+
+class OTPChallenge(TypedDict):
+    otp: str
+    expiry: float
+
+
+# In-memory OTP store: {telegram_id: {otp, expiry}}
+_otp_store: dict[str, OTPChallenge] = {}
 
 # Rate limiting: {ip: [timestamp, ...]}
 _request_log: dict[str, list[float]] = {}
@@ -33,23 +43,99 @@ def _check_rate_limit(ip: str) -> None:
 
 def _purge_expired() -> None:
     now = time.time()
-    expired = [k for k, v in _otp_store.items() if v < now]
+    expired = [k for k, v in _otp_store.items() if v["expiry"] < now]
     for k in expired:
         del _otp_store[k]
 
 
+def _admin_option(
+    telegram_id: str,
+    telegram_user_name: str | None,
+    full_name: str | None,
+    is_admin: bool,
+) -> dict:
+    return {
+        "telegram_id": telegram_id,
+        "telegram_user_name": telegram_user_name,
+        "full_name": full_name,
+        "is_admin": is_admin or check_super_admin(telegram_id),
+        "is_super_admin": check_super_admin(telegram_id),
+    }
+
+
+def list_admin_login_options() -> list[dict]:
+    options: list[dict] = []
+    seen: set[str] = set()
+
+    super_admin_id = str(ADMIN_USER_ID)
+    super_admin = get_user(super_admin_id)
+    if super_admin:
+        options.append(
+            _admin_option(
+                str(super_admin.telegram_id),
+                super_admin.telegram_user_name,
+                super_admin.full_name,
+                True,
+            )
+        )
+    else:
+        options.append(_admin_option(super_admin_id, None, "Super admin", True))
+    seen.add(super_admin_id)
+
+    for user in list_admin_users():
+        telegram_id = str(user.telegram_id)
+        if telegram_id in seen:
+            continue
+        options.append(
+            _admin_option(
+                telegram_id,
+                user.telegram_user_name,
+                user.full_name,
+                bool(user.is_admin),
+            )
+        )
+        seen.add(telegram_id)
+
+    return options
+
+
+@router.get("/admins")
+def get_login_admins():
+    return list_admin_login_options()
+
+
+@router.get("/me")
+def get_me(telegram_id: str = Depends(require_admin)):
+    return {
+        "telegram_id": telegram_id,
+        "is_admin": True,
+        "is_super_admin": check_super_admin(telegram_id),
+    }
+
+
+class OTPRequest(BaseModel):
+    telegram_id: str
+
+
 @router.post("/request-otp")
-async def request_otp(request: Request):
+async def request_otp(body: OTPRequest, request: Request):
     _check_rate_limit(request.client.host if request.client else "unknown")
     _purge_expired()
 
+    telegram_id = body.telegram_id.strip()
+    if not check_admin(telegram_id):
+        raise HTTPException(status_code=403, detail="Not an admin")
+
     otp = f"{random.SystemRandom().randint(0, 999999):06d}"
-    _otp_store[otp] = time.time() + OTP_EXPIRE_SECONDS
+    _otp_store[telegram_id] = {
+        "otp": otp,
+        "expiry": time.time() + OTP_EXPIRE_SECONDS,
+    }
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     async with httpx.AsyncClient() as client:
         resp = await client.post(url, json={
-            "chat_id": ADMIN_USER_ID,
+            "chat_id": telegram_id,
             "text": f"Your Botminton login code: *{otp}*\n\nExpires in 5 minutes.",
             "parse_mode": "Markdown",
         })
@@ -61,6 +147,7 @@ async def request_otp(request: Request):
 
 
 class OTPVerify(BaseModel):
+    telegram_id: str
     otp: str
 
 
@@ -69,12 +156,19 @@ def verify_otp(body: OTPVerify, request: Request):
     _check_rate_limit(request.client.host if request.client else "unknown")
     _purge_expired()
 
-    expiry = _otp_store.pop(body.otp, None)
-    if expiry is None or time.time() > expiry:
+    telegram_id = body.telegram_id.strip()
+    if not check_admin(telegram_id):
+        raise HTTPException(status_code=403, detail="Not an admin")
+
+    challenge = _otp_store.get(telegram_id)
+    if challenge is None or challenge["otp"] != body.otp or time.time() > challenge["expiry"]:
+        if challenge and time.time() > challenge["expiry"]:
+            _otp_store.pop(telegram_id, None)
         raise HTTPException(status_code=401, detail="Invalid or expired OTP")
 
+    _otp_store.pop(telegram_id, None)
     token = jwt.encode(
-        {"sub": ADMIN_USER_ID, "exp": int(time.time()) + TOKEN_EXPIRE_SECONDS},
+        {"sub": telegram_id, "exp": int(time.time()) + TOKEN_EXPIRE_SECONDS},
         JWT_SECRET,
         algorithm=ALGORITHM,
     )

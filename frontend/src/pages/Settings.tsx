@@ -15,6 +15,12 @@ interface User {
   telegram_user_name: string | null
   full_name: string | null
   is_admin: boolean
+  is_super_admin: boolean
+}
+interface CurrentUser {
+  telegram_id: string
+  is_admin: boolean
+  is_super_admin: boolean
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -34,6 +40,8 @@ export default function Settings() {
   const [venueError, setVenueError] = useState('')
 
   const [users, setUsers] = useState<User[]>([])
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [userError, setUserError] = useState('')
 
   function loadVenues() {
     api.get<Venue[]>('/venues').then((r) => setVenues(r.data))
@@ -45,6 +53,7 @@ export default function Settings() {
   useEffect(() => {
     loadVenues()
     loadUsers()
+    api.get<CurrentUser>('/auth/me').then((r) => setCurrentUser(r.data))
     api.get<Metadata>('/metadata').then((r) => {
       setVenueId(r.data.default_venue_id ?? '')
       setLocation(r.data.default_location ?? '')
@@ -97,8 +106,14 @@ export default function Settings() {
   }
 
   async function handleToggleAdmin(u: User) {
-    await api.put(`/users/${u.telegram_id}`, { is_admin: !u.is_admin })
-    loadUsers()
+    if (!currentUser?.is_super_admin || u.is_super_admin) return
+    setUserError('')
+    try {
+      await api.put(`/users/${u.telegram_id}`, { is_admin: !u.is_admin })
+      loadUsers()
+    } catch {
+      setUserError('Only the super admin can change admin access')
+    }
   }
 
   return (
@@ -196,7 +211,11 @@ export default function Settings() {
 
       <div className="card">
         <div className="card-header"><h3>Players</h3></div>
-        <p className="card-hint">Players register automatically when they interact with the Telegram bot.</p>
+        <p className="card-hint">
+          Players register automatically when they interact with the Telegram bot.
+          {currentUser && !currentUser.is_super_admin ? ' Only the super admin can change admin access.' : ''}
+        </p>
+        {userError && <div className="error-banner">{userError}</div>}
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -215,9 +234,14 @@ export default function Settings() {
                   <td>{u.full_name ?? <span className="muted">—</span>}</td>
                   <td>
                     <label className="checkbox-row">
-                      <input type="checkbox" checked={u.is_admin} onChange={() => handleToggleAdmin(u)} />
+                      <input
+                        type="checkbox"
+                        checked={u.is_admin}
+                        disabled={!currentUser?.is_super_admin || u.is_super_admin}
+                        onChange={() => handleToggleAdmin(u)}
+                      />
                       <span className={u.is_admin ? 'pill pill-accent' : 'muted text-small'}>
-                        {u.is_admin ? 'Admin' : '—'}
+                        {u.is_super_admin ? 'Super admin' : (u.is_admin ? 'Admin' : '—')}
                       </span>
                     </label>
                   </td>

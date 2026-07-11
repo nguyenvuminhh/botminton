@@ -9,6 +9,7 @@ from services.users import (
     list_all_users,
     update_user,
 )
+from utils.user import check_super_admin
 
 router = APIRouter()
 
@@ -19,7 +20,8 @@ def serialize(u: Users) -> dict:
         "telegram_id": u.telegram_id,
         "telegram_user_name": u.telegram_user_name,
         "full_name": u.full_name,
-        "is_admin": u.is_admin,
+        "is_admin": bool(u.is_admin) or check_super_admin(str(u.telegram_id)),
+        "is_super_admin": check_super_admin(str(u.telegram_id)),
     }
 
 
@@ -42,7 +44,12 @@ def get_user_by_id(telegram_id: str, _: str = Depends(require_admin)):
 
 
 @router.put("/{telegram_id}")
-def edit_user(telegram_id: str, body: UpdateUserBody, _: str = Depends(require_admin)):
+def edit_user(telegram_id: str, body: UpdateUserBody, actor_telegram_id: str = Depends(require_admin)):
+    if body.is_admin is not None and not check_super_admin(actor_telegram_id):
+        raise HTTPException(status_code=403, detail="Only the super admin can change admin access")
+    if body.is_admin is False and check_super_admin(telegram_id):
+        raise HTTPException(status_code=400, detail="Cannot remove super admin access")
+
     kwargs = {k: v for k, v in body.model_dump().items() if v is not None}
     u = update_user(telegram_id, **kwargs)
     if not u:

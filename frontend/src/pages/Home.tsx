@@ -85,7 +85,6 @@ export default function Home() {
   }, [])
 
   const refresh = useCallback(async () => {
-    setLoading(true)
     const [{ data: periods }, { data: usersList }] = await Promise.all([
       api.get<Period[]>('/periods'),
       api.get<User[]>('/users'),
@@ -155,7 +154,11 @@ export default function Home() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => {
+    Promise.resolve()
+      .then(refresh)
+      .catch(() => setLoading(false))
+  }, [refresh])
 
   async function togglePaid(p: Payment) {
     const endpoint = p.has_paid ? '/payments/mark-unpaid' : '/payments/mark-paid'

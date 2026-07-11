@@ -3,7 +3,8 @@ from mongoengine import DoesNotExist, MultipleObjectsReturned
 from typing import Optional, List, Sequence, cast
 import logging
 
-from utils.user import check_admin
+from config import ADMIN_USER_ID
+from utils.user import check_super_admin
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ class UserService:
     @staticmethod
     def create_user(telegram_id: str, telegram_user_name: Optional[str] = None, full_name: Optional[str] = None) -> Optional[Users]:
         try:
-            is_admin = check_admin(telegram_id)
+            is_admin = check_super_admin(telegram_id)
 
             existing_user = UserService.get_user_by_telegram_id(telegram_id)
             if existing_user:
@@ -52,7 +53,6 @@ class UserService:
     def update_user_by_telegram_id(telegram_id: str, **kwargs) -> Optional[Users]:
         try:
             user = cast(Users, Users.objects.get(telegram_id=telegram_id))
-            is_admin = check_admin(telegram_id)
 
             if 'telegram_user_name' in kwargs:
                 user.telegram_user_name = kwargs['telegram_user_name']
@@ -60,7 +60,11 @@ class UserService:
             if 'full_name' in kwargs:
                 user.full_name = kwargs['full_name']
 
-            user.is_admin = is_admin
+            if 'is_admin' in kwargs:
+                user.is_admin = bool(kwargs['is_admin'])
+
+            if check_super_admin(telegram_id):
+                user.is_admin = True
 
             user.save()
             logger.info(f"Updated user with telegram_id: {telegram_id}")
@@ -114,6 +118,26 @@ class UserService:
             return []
 
     @staticmethod
+    def list_admin_users(limit: int = 100, offset: int = 0) -> List[Users]:
+        try:
+            users = list(Users.objects(is_admin=True).skip(offset).limit(limit))
+            super_admin = UserService.get_user_by_telegram_id(str(ADMIN_USER_ID))
+            if super_admin and all(str(user.telegram_id) != str(super_admin.telegram_id) for user in users):
+                users.insert(0, super_admin)
+            users.sort(
+                key=lambda user: (
+                    not check_super_admin(str(user.telegram_id)),
+                    (user.full_name or user.telegram_user_name or user.telegram_id or "").lower(),
+                )
+            )
+            logger.debug(f"Listed {len(users)} admin users")
+            return users
+
+        except Exception as e:
+            logger.error(f"Failed to list admin users: {e}")
+            return []
+
+    @staticmethod
     def get_user_by_username(username: str) -> Optional[Users]:
         """Look up a user by telegram_user_name (case-insensitive, strips leading @)."""
         try:
@@ -153,3 +177,6 @@ def list_all_users(limit: int = 100, offset: int = 0) -> List[Users]:
 
 def list_users_by_telegram_ids(telegram_ids: Sequence[str]) -> List[Users]:
     return UserService.list_users_by_telegram_ids(telegram_ids)
+
+def list_admin_users(limit: int = 100, offset: int = 0) -> List[Users]:
+    return UserService.list_admin_users(limit, offset)
