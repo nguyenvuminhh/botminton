@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 interface Session {
   id: string
   date: string
@@ -69,10 +71,22 @@ export default function MoneyMatrix({
   users,
   onTogglePaid,
 }: Props) {
+  const [view, setView] = useState<'share' | 'money'>('share')
   const closed = !!payments && payments.length > 0
   const sessionsSorted = [...sessions].sort((a, b) => (a.date < b.date ? -1 : 1))
   const additionalCostsSorted = [...additionalCosts]
   const showShuttlecockCol = shuttlecockTotal > 0 || shuttlecockTubes > 0
+  const additionalCostTotalWeight: Record<string, number> = {}
+  for (const cost of additionalCostsSorted) {
+    additionalCostTotalWeight[cost.id] = cost.total_weight
+      ?? (additionalCostParticipantsByCost[cost.id] ?? []).reduce((a, p) => a + (p.weight || 0), 0)
+  }
+
+  function formatItem(weight: number, totalWeight: number, totalMoney: number) {
+    if (view === 'share') return weight
+    const amount = totalWeight > 0 ? (weight / totalWeight) * totalMoney : 0
+    return `€${amount.toFixed(2)}`
+  }
 
   const sessionTotalWeight: Record<string, number> = {}
   for (const s of sessionsSorted) {
@@ -158,93 +172,114 @@ export default function MoneyMatrix({
   const shuttleLabel = `${shuttlecockTubes} tube${shuttlecockTubes === 1 ? '' : 's'} of shuttle cock`
 
   return (
-    <div className="table-wrap scroll-x">
-      <table className="table table-matrix">
-        <thead>
-          <tr>
-            <th>Player</th>
-            <th>Handle</th>
-            {sessionsSorted.map((s) => (
-              <th key={s.id}>
-                <span className="col-header-block">
-                  <span className="col-header-title">{formatShortDate(s.date)}</span>
-                  <span className="col-header-meta">Price: €{s.total_money.toFixed(2)}</span>
-                  <span className="col-header-meta">Shares: {sessionTotalWeight[s.id] || 0}</span>
-                </span>
-              </th>
-            ))}
-            {showShuttlecockCol && (
-              <th>
-                <span className="col-header-block">
-                  <span className="col-header-title">{shuttleLabel}</span>
-                  <span className="col-header-meta">Price: €{shuttlecockTotal.toFixed(2)}</span>
-                  <span className="col-header-meta">Shares: {periodTotalWeight}</span>
-                </span>
-              </th>
-            )}
-            {additionalCostsSorted.map((cost) => (
-              <th key={cost.id}>
-                <span className="col-header-block">
-                  <span className="col-header-title">{cost.name}</span>
-                  <span className="col-header-meta">Price: €{cost.total_amount.toFixed(2)}</span>
-                  <span className="col-header-meta">
-                    Shares: {cost.total_weight ?? (additionalCostParticipantsByCost[cost.id] ?? []).reduce((a, p) => a + (p.weight || 0), 0)}
+    <>
+      <div className="matrix-view-toggle" role="group" aria-label="Item cell view">
+        <span>View</span>
+        <button
+          type="button"
+          className={`btn btn-sm ${view === 'share' ? 'btn-primary' : 'btn-ghost'}`}
+          aria-pressed={view === 'share'}
+          onClick={() => setView('share')}
+        >
+          Share
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${view === 'money' ? 'btn-primary' : 'btn-ghost'}`}
+          aria-pressed={view === 'money'}
+          onClick={() => setView('money')}
+        >
+          Money
+        </button>
+      </div>
+      <div className="table-wrap scroll-x">
+        <table className="table table-matrix">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Handle</th>
+              {sessionsSorted.map((s) => (
+                <th key={s.id}>
+                  <span className="col-header-block">
+                    <span className="col-header-title">{formatShortDate(s.date)}</span>
+                    <span className="col-header-meta">Price: €{s.total_money.toFixed(2)}</span>
+                    <span className="col-header-meta">Shares: {sessionTotalWeight[s.id] || 0}</span>
                   </span>
-                </span>
-              </th>
-            ))}
-            <th className="col-total">Total</th>
-            {closed && <th>Paid</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.telegramId}>
-              <td className="cell-name">{r.name}</td>
-              <td className="cell-handle">{r.handle ? '@' + r.handle : '—'}</td>
-              {sessionsSorted.map((s) => {
-                const w = r.perSession[s.id] || 0
-                const cls = 'cell-weight' + (w > 0 ? ' active' : '') + (w > 1 ? ' plus' : '')
-                return <td key={s.id} className={cls}>{w > 0 ? w : ''}</td>
-              })}
+                </th>
+              ))}
               {showShuttlecockCol && (
-                <td className={'cell-weight active' + (r.periodWeight > 1 ? ' plus' : '')}>
-                  {r.periodWeight}
-                </td>
+                <th>
+                  <span className="col-header-block">
+                    <span className="col-header-title">{shuttleLabel}</span>
+                    <span className="col-header-meta">Price: €{shuttlecockTotal.toFixed(2)}</span>
+                    <span className="col-header-meta">Shares: {periodTotalWeight}</span>
+                  </span>
+                </th>
               )}
-              {additionalCostsSorted.map((cost) => {
-                const w = r.perAdditionalCost[cost.id] || 0
-                const cls = 'cell-weight' + (w > 0 ? ' active' : '') + (w > 1 ? ' plus' : '')
-                return <td key={cost.id} className={cls}>{w > 0 ? w : ''}</td>
-              })}
-              <td className="cell-num cell-money col-total">
-                €{(moneyByPlayer[r.telegramId] ?? 0).toFixed(2)}
-              </td>
-              {closed && (
-                <td className="cell-paid">
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={paidByPlayer[r.telegramId] ?? false}
-                      onChange={() => onTogglePaid?.(r.telegramId, paidByPlayer[r.telegramId] ?? false)}
-                    />
-                    <span className={'pill ' + (paidByPlayer[r.telegramId] ? 'pill-paid' : 'pill-unpaid')}>
-                      {paidByPlayer[r.telegramId] ? 'Paid' : 'Unpaid'}
+              {additionalCostsSorted.map((cost) => (
+                <th key={cost.id}>
+                  <span className="col-header-block">
+                    <span className="col-header-title">{cost.name}</span>
+                    <span className="col-header-meta">Price: €{cost.total_amount.toFixed(2)}</span>
+                    <span className="col-header-meta">
+                      Shares: {additionalCostTotalWeight[cost.id]}
                     </span>
-                  </label>
-                </td>
-              )}
+                  </span>
+                </th>
+              ))}
+              <th className="col-total">Total</th>
+              {closed && <th>Paid</th>}
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colSpan={2 + sessionColCount}></td>
-            <td className="col-total">€{totalPeriodMoney.toFixed(2)}</td>
-            {closed && <td></td>}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.telegramId}>
+                <td className="cell-name">{r.name}</td>
+                <td className="cell-handle">{r.handle ? '@' + r.handle : '—'}</td>
+                {sessionsSorted.map((s) => {
+                  const w = r.perSession[s.id] || 0
+                  const cls = 'cell-weight' + (w > 0 ? ' active' : '') + (w > 1 ? ' plus' : '')
+                  return <td key={s.id} className={cls}>{w > 0 ? formatItem(w, sessionTotalWeight[s.id], s.total_money) : ''}</td>
+                })}
+                {showShuttlecockCol && (
+                  <td className={'cell-weight active' + (r.periodWeight > 1 ? ' plus' : '')}>
+                    {formatItem(r.periodWeight, periodTotalWeight, shuttlecockTotal)}
+                  </td>
+                )}
+                {additionalCostsSorted.map((cost) => {
+                  const w = r.perAdditionalCost[cost.id] || 0
+                  const cls = 'cell-weight' + (w > 0 ? ' active' : '') + (w > 1 ? ' plus' : '')
+                  return <td key={cost.id} className={cls}>{w > 0 ? formatItem(w, additionalCostTotalWeight[cost.id], cost.total_amount) : ''}</td>
+                })}
+                <td className="cell-num cell-money col-total">
+                  €{(moneyByPlayer[r.telegramId] ?? 0).toFixed(2)}
+                </td>
+                {closed && (
+                  <td className="cell-paid">
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={paidByPlayer[r.telegramId] ?? false}
+                        onChange={() => onTogglePaid?.(r.telegramId, paidByPlayer[r.telegramId] ?? false)}
+                      />
+                      <span className={'pill ' + (paidByPlayer[r.telegramId] ? 'pill-paid' : 'pill-unpaid')}>
+                        {paidByPlayer[r.telegramId] ? 'Paid' : 'Unpaid'}
+                      </span>
+                    </label>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={2 + sessionColCount}></td>
+              <td className="col-total">€{totalPeriodMoney.toFixed(2)}</td>
+              {closed && <td></td>}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </>
   )
 }

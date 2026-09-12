@@ -431,6 +431,15 @@ a:hover { text-decoration: underline; }
 
 /* ============ Matrix table ============ */
 
+.matrix-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .table-matrix thead th {
   text-align: center;
   vertical-align: bottom;
