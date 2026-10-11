@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from models.period_money import PeriodMoneyReport
 from schemas.periods import Periods
 from services.additional_costs import list_additional_costs_by_period, list_participants_by_costs
-from services.calculations import calculate_period_report
+from services.calculations import CalculationService
 from services.period_shuttlecock_uses import list_uses_by_period
 from services.session_participants import list_participants_by_sessions
 from services.sessions import list_sessions_by_period
@@ -62,6 +62,7 @@ def build_period_matrix(period: Periods, report: PeriodMoneyReport | None = None
         tubes_used = u.tubes_used or 0  # type: ignore
         shuttlecock_total += price_each * tubes_used
         shuttlecock_tubes += tubes_used
+    shuttlecock_cost = shuttlecock_total
     shuttlecock_total = round(shuttlecock_total, 2)
 
     additional_costs_out = []
@@ -74,6 +75,7 @@ def build_period_matrix(period: Periods, report: PeriodMoneyReport | None = None
             continue
         participants_by_cost.setdefault(str(cost.id), []).append(p)  # type: ignore
 
+    additional_shares: dict[str, float] = {}
     for cost in additional_costs:
         cost_id = str(cost.id)  # type: ignore
         participants_for_cost = participants_by_cost.get(cost_id, [])
@@ -90,6 +92,8 @@ def build_period_matrix(period: Periods, report: PeriodMoneyReport | None = None
             if not tid:
                 continue
             user_ids.add(tid)
+            if total_weight > 0:
+                additional_shares[tid] = additional_shares.get(tid, 0.0) + cost.total_amount * (p.weight or 0.0) / total_weight
             items.append({
                 "user_telegram_id": tid,
                 "user_name": p.user.telegram_user_name if p.user else None,  # type: ignore
@@ -99,7 +103,9 @@ def build_period_matrix(period: Periods, report: PeriodMoneyReport | None = None
         additional_cost_participants_out[cost_id] = items
 
     if report is None:
-        report = calculate_period_report(start_date_iso)
+        report = CalculationService.build_period_report(
+            period, sessions, participants, shuttlecock_cost, additional_shares,
+        )
     personal = []
     total_money = 0.0
     if report:

@@ -700,3 +700,20 @@ a:hover { text-decoration: underline; }
   padding: 4px;
 }
 .link-btn:hover { text-decoration: underline; }
+
+.session-workspace { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.player-panel { flex: 1 1 380px; min-width: 0; padding: 16px; background: var(--surface-2); border-radius: 12px; }
+.player-picker { max-height: 240px; overflow-y: auto; margin: 12px 0 20px; }
+.player-option { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--border); background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.player-option:hover { background: var(--accent-soft); }
+.player-option:disabled { opacity: .6; cursor: wait; }
+.player-option small { display: block; color: var(--text-muted); }
+.number-editor { display: flex; align-items: center; gap: 3px; }
+.number-editor .input { width: 66px; min-width: 0; padding: 6px; }
+.number-editor .btn { padding: 5px 8px; }
+
+@media (max-width: 600px) {
+  .player-panel .table th, .player-panel .table td { padding: 8px 4px; }
+  .player-panel .number-editor { flex-wrap: wrap; }
+  .player-panel .number-editor .input { width: 52px; }
+}

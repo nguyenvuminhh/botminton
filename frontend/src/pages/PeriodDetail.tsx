@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import MoneyMatrix from '../components/MoneyMatrix'
+import NumberEditor from '../components/NumberEditor'
 
 interface Period { id: string; start_date: string; end_date: string | null; total_money: number | null }
 interface Session {
@@ -84,14 +85,17 @@ export default function PeriodDetail() {
   const [report, setReport] = useState<Report | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
 
-  const [newSessionDate, setNewSessionDate] = useState('')
+  const [newSessionDate, setNewSessionDate] = useState(todayISO())
   const [newSessionVenue, setNewSessionVenue] = useState('')
   const [newSessionSlots, setNewSessionSlots] = useState('')
 
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [participantsBySession, setParticipantsBySession] = useState<Record<string, Participant[]>>({})
-  const [newPlayerTelegramId, setNewPlayerTelegramId] = useState('')
-  const [newPlayerAdditional, setNewPlayerAdditional] = useState('0')
+  const [playerSearch, setPlayerSearch] = useState('')
+  const [playerBusy, setPlayerBusy] = useState(false)
+  const [rosterLoading, setRosterLoading] = useState(true)
+  const [sessionBusy, setSessionBusy] = useState(false)
+  const [sessionError, setSessionError] = useState('')
   const participants = selectedSessionId ? (participantsBySession[selectedSessionId] ?? []) : []
 
   const [useBatchId, setUseBatchId] = useState('')
@@ -117,7 +121,10 @@ export default function PeriodDetail() {
     api.get<Period>(`/periods/${startDate}`).then((r) => setPeriod(r.data)).catch(() => setPeriod(null))
   }, [startDate])
   const loadSessions = useCallback(() => {
-    api.get<Session[]>(`/sessions?period=${startDate}`).then((r) => setSessions(r.data))
+    api.get<Session[]>(`/sessions?period=${startDate}`).then((r) => {
+      setSessions(r.data)
+      setSelectedSessionId((prev) => prev ?? r.data.at(-1)?.id ?? null)
+    })
   }, [startDate])
   const loadUses = useCallback(() => {
     api.get<ShuttlecockUse[]>(`/periods/${startDate}/shuttlecocks`).then((r) => setUses(r.data))
@@ -144,17 +151,25 @@ export default function PeriodDetail() {
     api.get<Batch[]>('/shuttlecocks').then((r) => setBatches(r.data))
   }, [startDate, loadPeriod, loadSessions, loadUses, loadAdditionalCosts, loadReport, loadPayments])
 
-  const loadParticipants = useCallback(async (sessionsList: Session[]) => {
-    if (sessionsList.length === 0) { setParticipantsBySession({}); return }
-    const results = await Promise.all(
-      sessionsList.map((s) =>
+  const loadParticipants = useCallback(async (sessionsList: Pick<Session, 'id' | 'date'>[]) => {
+    setRosterLoading(true)
+    try {
+      const results = await Promise.all(sessionsList.map((s) =>
         api.get<Participant[]>(`/participants?session_date=${s.date}`).then((r) => [s.id, r.data] as const)
-      )
-    )
-    setParticipantsBySession(Object.fromEntries(results))
+      ))
+      setParticipantsBySession(Object.fromEntries(results))
+    } catch { setSessionError('Could not load players. Reload the page to try again.') }
+    finally { setRosterLoading(false) }
   }, [])
 
-  useEffect(() => { loadParticipants(sessions) }, [sessions, loadParticipants])
+  const sessionKeys = sessions.map((s) => `${s.id}:${s.date}`).join(',')
+  useEffect(() => {
+    const list = sessionKeys ? sessionKeys.split(',').map((key) => {
+      const [id, date] = key.split(':')
+      return { id, date }
+    }) : []
+    void loadParticipants(list)
+  }, [sessionKeys, loadParticipants])
 
   const loadAdditionalCostParticipants = useCallback(async (costsList: AdditionalCost[]) => {
     if (costsList.length === 0) { setAdditionalCostParticipantsByCost({}); return }
@@ -172,22 +187,25 @@ export default function PeriodDetail() {
 
   async function handleAddSession(e: React.FormEvent) {
     e.preventDefault()
-    if (!period) return
-    await api.post('/sessions', {
-      date: newSessionDate,
-      period_id: period.id,
-      venue_id: newSessionVenue || undefined,
-      slots: parseFloat(newSessionSlots) || 0,
-    })
-    setNewSessionDate(''); setNewSessionVenue(''); setNewSessionSlots('')
-    loadSessions(); loadReport()
+    if (!period || sessionBusy) return
+    setSessionBusy(true); setSessionError('')
+    try {
+      const { data } = await api.post<Session>('/sessions', {
+        date: newSessionDate, period_id: period.id,
+        venue_id: newSessionVenue || undefined, slots: Number(newSessionSlots) || 0,
+      })
+      setSessions((prev) => [...prev, data].sort((a, b) => a.date.localeCompare(b.date)))
+      setSelectedSessionId(data.id)
+      setPlayerSearch('')
+      loadReport()
+    } catch { setSessionError('Could not add session. Check the date and try again.') }
+    finally { setSessionBusy(false) }
   }
 
-  async function handleUpdateSlots(s: Session) {
-    const v = prompt('Slots:', String(s.slots))
-    if (v === null) return
-    await api.put(`/sessions/${s.date}`, { slots: parseFloat(v) })
-    loadSessions(); loadReport()
+  async function handleUpdateSlots(s: Session, slots: number) {
+    const { data } = await api.put<Session>(`/sessions/${s.date}`, { slots })
+    setSessions((prev) => prev.map((item) => item.id === s.id ? { ...data, people_count: item.people_count } : item))
+    loadReport()
   }
 
   async function handleUpdateVenue(s: Session, venueId: string) {
@@ -202,30 +220,48 @@ export default function PeriodDetail() {
     loadSessions(); loadReport()
   }
 
-  async function handleAddParticipant(e: React.FormEvent) {
-    e.preventDefault()
+  function updateRoster(session: Session, roster: Participant[]) {
+    setParticipantsBySession((prev) => ({ ...prev, [session.id]: roster }))
+    setSessions((prev) => prev.map((s) => s.id === session.id
+      ? { ...s, people_count: roster.reduce((sum, p) => sum + 1 + p.additional_participants, 0) } : s))
+    loadReport()
+  }
+
+  async function handleAddParticipant(telegramId: string) {
     const s = sessions.find((x) => x.id === selectedSessionId)
-    if (!s || !newPlayerTelegramId) return
-    await api.post('/participants', {
-      user_telegram_id: newPlayerTelegramId,
-      session_date: s.date,
-      additional_participants: parseInt(newPlayerAdditional) || 0,
-    })
-    setNewPlayerTelegramId(''); setNewPlayerAdditional('0')
-    const r = await api.get<Participant[]>(`/participants?session_date=${s.date}`)
-    setParticipantsBySession((prev) => ({ ...prev, [s.id]: r.data }))
-    loadSessions(); loadReport()
+    if (!s || playerBusy || rosterLoading) return
+    setPlayerBusy(true); setSessionError('')
+    try {
+      const { data } = await api.post<Participant>('/participants', {
+        user_telegram_id: telegramId, session_date: s.date, additional_participants: 0,
+      })
+      updateRoster(s, [...(participantsBySession[s.id] ?? []).filter((p) => p.id !== data.id), data])
+    } catch { setSessionError('Could not add player. Try again.') }
+    finally { setPlayerBusy(false) }
+  }
+
+  async function handleUpdatePlus(p: Participant, additional_participants: number) {
+    const s = sessions.find((x) => x.id === selectedSessionId)
+    if (!s || playerBusy || rosterLoading) return
+    setPlayerBusy(true)
+    try {
+      const { data } = await api.put<Participant>(`/participants/${p.id}`, { additional_participants })
+      setParticipantsBySession((prev) => ({ ...prev, [s.id]: (prev[s.id] ?? []).map((item) => item.id === p.id ? data : item) }))
+      setSessions((prev) => prev.map((item) => item.id === s.id
+        ? { ...item, people_count: item.people_count + additional_participants - p.additional_participants } : item))
+      loadReport()
+    } finally { setPlayerBusy(false) }
   }
 
   async function handleRemoveParticipant(id: string) {
     const s = sessions.find((x) => x.id === selectedSessionId)
-    if (!s) return
-    await api.delete(`/participants/${id}`)
-    setParticipantsBySession((prev) => ({
-      ...prev,
-      [s.id]: (prev[s.id] ?? []).filter((p) => p.id !== id),
-    }))
-    loadSessions(); loadReport()
+    if (!s || playerBusy || rosterLoading) return
+    setPlayerBusy(true); setSessionError('')
+    try {
+      await api.delete(`/participants/${id}`)
+      updateRoster(s, (participantsBySession[s.id] ?? []).filter((p) => p.id !== id))
+    } catch { setSessionError('Could not remove player. Try again.') }
+    finally { setPlayerBusy(false) }
   }
 
   async function handleAddUse(e: React.FormEvent) {
@@ -419,10 +455,12 @@ export default function PeriodDetail() {
             <label className="field-label">Slots</label>
             <input type="number" step="0.5" min="0" placeholder="0" value={newSessionSlots} onChange={(e) => setNewSessionSlots(e.target.value)} className="input" />
           </div>
-          <button type="submit" className="btn btn-primary">Add session</button>
+          <button type="submit" className="btn btn-primary" disabled={sessionBusy}>{sessionBusy ? 'Adding…' : 'Add session'}</button>
         </form>
 
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {sessionError && <div className="error-banner" role="alert">{sessionError}</div>}
+        <p className="muted text-small">Select a session to manage its players. One slot = one court for one hour.</p>
+        <div className="session-workspace">
           <div className="table-wrap" style={{ flex: '1 1 460px', minWidth: 0 }}>
             <table className="table">
               <thead>
@@ -461,10 +499,10 @@ export default function PeriodDetail() {
                       )}
                     </td>
                     <td className="cell-num">{s.people_count}</td>
-                    <td className="cell-num">{s.slots}</td>
+                    <td onClick={(e) => e.stopPropagation()}><NumberEditor value={s.slots} step={0.5} label={`Slots for ${s.date}`} onSave={(slots) => handleUpdateSlots(s, slots)} /></td>
                     <td className="cell-num cell-money">€{s.total_money.toFixed(2)}</td>
                     <td className="cell-actions">
-                      <button onClick={(e) => { e.stopPropagation(); handleUpdateSlots(s) }} className="btn btn-sm btn-ghost">Slots</button>
+                      <button onClick={(e) => { e.stopPropagation(); setSelectedSessionId(s.id); setPlayerSearch('') }} className="btn btn-sm btn-ghost">Players</button>
                       <button onClick={(e) => { e.stopPropagation(); handleDeleteSession(s) }} className="btn btn-sm btn-danger">Del</button>
                     </td>
                   </tr>
@@ -476,56 +514,39 @@ export default function PeriodDetail() {
             </table>
           </div>
 
-          {selectedSession && (
-            <div style={{ width: 340, flexShrink: 0 }}>
-              <h4 style={{ marginBottom: 10 }}>Participants · {selectedSession.date}</h4>
-              <form onSubmit={handleAddParticipant} className="form-row" style={{ marginBottom: 10 }}>
-                <select
-                  className="select"
-                  value={newPlayerTelegramId}
-                  onChange={(e) => setNewPlayerTelegramId(e.target.value)}
-                  style={{ flex: 1, minWidth: 140 }}
-                >
-                  <option value="">— add player —</option>
-                  {users
-                    .filter((u) => !participants.some((p) => p.user_telegram_id === u.telegram_id))
-                    .map((u) => <option key={u.telegram_id} value={u.telegram_id}>{userLabel(u)}</option>)}
-                </select>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={newPlayerAdditional}
-                  onChange={(e) => setNewPlayerAdditional(e.target.value)}
-                  className="input"
-                  style={{ width: 64 }}
-                  title="Plus-ones"
-                />
-                <button type="submit" className="btn btn-primary btn-sm" disabled={!newPlayerTelegramId}>Add</button>
-              </form>
+          {selectedSession ? (
+            <div className="player-panel" key={selectedSession.id}>
+              <h4>Players · {selectedSession.date}</h4>
+              <p className="muted text-small">{participants.length} players · {selectedSession.people_count} people including plus-ones</p>
+              <label className="field-label" htmlFor="player-search">Find players to add</label>
+              <input id="player-search" type="search" className="input" placeholder="Search name, handle or ID…" value={playerSearch} onChange={(e) => setPlayerSearch(e.target.value)} />
+              {rosterLoading && <p role="status" className="muted">Loading players…</p>}
+              <div className="player-picker" aria-label="Available players" aria-busy={playerBusy}>
+                {users.filter((u) => !participants.some((p) => p.user_telegram_id === u.telegram_id))
+                  .filter((u) => `${u.full_name ?? ''} ${u.telegram_user_name ?? ''} ${u.telegram_id}`.toLowerCase().includes(playerSearch.toLowerCase()))
+                  .sort((a, b) => userLabel(a).localeCompare(userLabel(b)))
+                  .map((u) => <button key={u.telegram_id} type="button" className="player-option" disabled={playerBusy || rosterLoading} onClick={() => handleAddParticipant(u.telegram_id)}>
+                    <span>{userLabel(u)}{u.full_name && u.telegram_user_name && <small>@{u.telegram_user_name}</small>}</span><span>Add +</span>
+                  </button>)}
+                {!users.some((u) => !participants.some((p) => p.user_telegram_id === u.telegram_id) && `${u.full_name ?? ''} ${u.telegram_user_name ?? ''} ${u.telegram_id}`.toLowerCase().includes(playerSearch.toLowerCase())) && <p className="muted text-small">No matching players to add.</p>}
+              </div>
               <div className="table-wrap">
                 <table className="table">
-                  <thead>
-                    <tr><th>User</th><th className="cell-num">+</th><th></th></tr>
-                  </thead>
+                  <thead><tr><th>Player</th><th>Plus-ones</th><th></th></tr></thead>
                   <tbody>
                     {participants.map((p) => (
                       <tr key={p.id}>
-                        <td>{p.user_name ?? p.user_telegram_id}</td>
-                        <td className="cell-num">{p.additional_participants}</td>
-                        <td className="cell-actions">
-                          <button onClick={() => handleRemoveParticipant(p.id)} className="btn btn-sm btn-danger">×</button>
-                        </td>
+                        <td>{users.find((u) => u.telegram_id === p.user_telegram_id)?.full_name || p.user_name || p.user_telegram_id}</td>
+                        <td><NumberEditor disabled={playerBusy || rosterLoading} value={p.additional_participants} label={`Plus-ones for ${p.user_name ?? p.user_telegram_id}`} onSave={(plus) => handleUpdatePlus(p, plus)} /></td>
+                        <td><button type="button" onClick={() => handleRemoveParticipant(p.id)} disabled={playerBusy || rosterLoading} aria-label={`Remove ${p.user_name ?? p.user_telegram_id}`} className="btn btn-sm btn-danger">×</button></td>
                       </tr>
                     ))}
-                    {participants.length === 0 && (
-                      <tr><td colSpan={3} className="muted" style={{ textAlign: 'center', padding: 20 }}>No participants.</td></tr>
-                    )}
+                    {participants.length === 0 && <tr><td colSpan={3} className="muted">Add players using the list above.</td></tr>}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
+          ) : <div className="player-panel empty-state">Select a session to add players and edit plus-ones.</div>}
         </div>
       </div>
 

@@ -7,11 +7,10 @@ from telegram import Bot
 from backend.deps import require_admin
 from config import BOT_TOKEN, COMMON_GROUP_CHAT_ID, PUBLIC_BASE_URL
 from models.period_money import PeriodMoneyReport
-from schemas.period_shuttlecock_uses import PeriodShuttlecockUses
-from schemas.periods import Periods
 from schemas.additional_cost_participants import AdditionalCostParticipants
 from schemas.additional_costs import AdditionalCosts
-from services.calculations import calculate_period_report
+from schemas.period_shuttlecock_uses import PeriodShuttlecockUses
+from schemas.periods import Periods
 from services.additional_costs import (
     add_additional_cost_participant,
     create_additional_cost,
@@ -21,6 +20,8 @@ from services.additional_costs import (
     list_additional_costs_by_period,
     update_additional_cost,
 )
+from services.calculations import calculate_period_report
+from services.period_matrix import build_period_matrix
 from services.period_moneys import upsert_period_money
 from services.period_shuttlecock_uses import (
     create_use,
@@ -36,7 +37,6 @@ from services.periods import (
     list_all_periods,
     update_period,
 )
-from services.period_matrix import build_period_matrix
 from services.sessions import list_sessions_by_period
 from utils.messages import get_period_closed_message
 
@@ -124,6 +124,14 @@ def get_period_by_date(start_date: str, _: str = Depends(require_admin)):
     if not p:
         raise HTTPException(status_code=404, detail="Period not found")
     return serialize(p)
+
+
+@router.get("/{start_date}/matrix")
+def get_period_matrix(start_date: str, _: str = Depends(require_admin)):
+    period = get_period(start_date)
+    if not period:
+        raise HTTPException(status_code=404, detail="Period not found")
+    return build_period_matrix(period)
 
 
 @router.post("", status_code=201)

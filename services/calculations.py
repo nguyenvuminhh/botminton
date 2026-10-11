@@ -15,16 +15,17 @@ Additional cost per selected player (period-level):
     cost_share = cost.total_amount × selected_player_weight / selected_cost_total_weight
 """
 
+import logging
 from datetime import date as dt_date
 from typing import Optional
+
 from models.period_money import PeriodMoneyReport, PersonalPeriodMoney
+from services.additional_costs import calculate_additional_cost_shares
+from services.periods import PeriodService
 from services.session_participants import SessionParticipantService
 from services.sessions import SessionService
-from services.periods import PeriodService
 from services.shuttlecock_batches import ShuttlecockBatchService
-from services.additional_costs import calculate_additional_cost_shares
 from services.users import UserService
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,15 @@ class CalculationService:
 
         sessions = SessionService.list_sessions_by_period_id(period_start_date)
         participants = SessionParticipantService.list_participants_by_sessions(sessions)
+        return CalculationService.build_period_report(
+            period, sessions, participants,
+            ShuttlecockBatchService.get_total_shuttlecock_cost_for_period(period_start_date),
+            calculate_additional_cost_shares(period_start_date),
+        )
+
+    @staticmethod
+    def build_period_report(period, sessions, participants, total_shuttlecock_cost, player_additional_costs):
+        """Calculate from already-loaded data so matrix requests do not repeat queries."""
         participants_by_session: dict[str, list] = {}
         for participant in participants:
             session = getattr(participant, "session", None)
@@ -109,7 +119,6 @@ class CalculationService:
                 player_courts[tid] = player_courts.get(tid, 0.0) + (per_unit * weight)
 
         # --- Shuttlecock calculation ---
-        total_shuttlecock_cost = ShuttlecockBatchService.get_total_shuttlecock_cost_for_period(period_start_date)
 
         # Weight = sum of (1 + additional) across ALL sessions attended
         player_period_weight: dict[str, float] = {}
@@ -127,9 +136,6 @@ class CalculationService:
         if period_total_weight > 0 and total_shuttlecock_cost > 0:
             for tid, weight in player_period_weight.items():
                 player_shuttlecock[tid] = (weight / period_total_weight) * total_shuttlecock_cost
-
-        # --- Additional costs calculation ---
-        player_additional_costs = calculate_additional_cost_shares(period_start_date)
 
         # --- Merge ---
         all_player_ids = set(player_courts.keys()) | set(player_shuttlecock.keys()) | set(player_additional_costs.keys())

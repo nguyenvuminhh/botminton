@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.deps import require_admin
 from schemas.session_participants import SessionParticipants
@@ -28,11 +28,11 @@ def serialize(p: SessionParticipants) -> dict:
 class CreateParticipantBody(BaseModel):
     user_telegram_id: str
     session_date: str
-    additional_participants: int = 0
+    additional_participants: int = Field(default=0, ge=0)
 
 
 class UpdateParticipantBody(BaseModel):
-    additional_participants: Optional[int] = None
+    additional_participants: Optional[int] = Field(default=None, ge=0)
 
 
 @router.get("")

@@ -161,7 +161,7 @@ class SessionParticipantService:
             session_date_obj = dt_date.fromisoformat(session_date)
             session = cast(Sessions, Sessions.objects.get(date=session_date_obj))
             
-            participants = list(SessionParticipants.objects.filter(session=session))  # type: ignore
+            participants = list(SessionParticipants.objects.filter(session=session).select_related())  # type: ignore
             logger.debug(f"Found {len(participants)} participants for session {session_date}")
             return participants
 

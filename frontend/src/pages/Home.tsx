@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import MoneyMatrix from '../components/MoneyMatrix'
+import type { MatrixPayload } from '../matrix'
 
 interface Period {
   id: string
@@ -17,80 +18,20 @@ interface Payment {
   has_paid: boolean
   period_start_date: string | null
 }
-interface ReportEntry { person_id: string; telegram_user_name: string; full_name: string | null; period_money: number }
-interface Report {
-  period_start_date: string
-  period_end_date: string
-  total_period_money: number
-  personal_period_money: ReportEntry[]
-}
-interface Session {
-  id: string
-  date: string
-  venue_name: string | null
-  slots: number
-  people_count: number
-  total_money: number
-  is_poll_open: boolean
-}
-interface Participant {
-  id: string
-  user_telegram_id: string
-  user_name: string | null
-  additional_participants: number
-}
-interface User {
-  id: string
-  telegram_id: string
-  telegram_user_name: string | null
-  full_name: string | null
-}
-interface ShuttlecockUse {
-  id: string
-  price_each: number
-  tubes_used: number
-}
-interface AdditionalCost {
-  id: string
-  name: string
-  total_amount: number
-  total_weight: number
-}
-interface AdditionalCostParticipant {
-  id: string
-  additional_cost_id: string
-  user_telegram_id: string
-  user_name: string | null
-  full_name: string | null
-  weight: number
-}
-
 export default function Home() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [lastClosed, setLastClosed] = useState<Period | null>(null)
   const [currentOpen, setCurrentOpen] = useState<Period | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
-  const [report, setReport] = useState<Report | null>(null)
-  const [sessions, setSessions] = useState<Session[]>([])
-  const [participantsBySession, setParticipantsBySession] = useState<Record<string, Participant[]>>({})
-  const [shuttlecockTotal, setShuttlecockTotal] = useState(0)
-  const [shuttlecockTubes, setShuttlecockTubes] = useState(0)
-  const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([])
-  const [additionalCostParticipantsByCost, setAdditionalCostParticipantsByCost] = useState<Record<string, AdditionalCostParticipant[]>>({})
-  const [users, setUsers] = useState<User[]>([])
-
-  const loadPayments = useCallback((startDate: string) => {
-    api.get<Payment[]>(`/payments?period=${startDate}`).then((r) => setPayments(r.data)).catch(() => setPayments([]))
-  }, [])
+  const [matrix, setMatrix] = useState<MatrixPayload | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [summaryError, setSummaryError] = useState('')
 
   const refresh = useCallback(async () => {
-    const [{ data: periods }, { data: usersList }] = await Promise.all([
-      api.get<Period[]>('/periods'),
-      api.get<User[]>('/users'),
-    ])
-    setUsers(usersList)
-
+    setError(''); setSummaryError('')
+    const { data: periods } = await api.get<Period[]>('/periods')
     const closed = periods
       .filter((p) => p.end_date)
       .sort((a, b) => (a.end_date! < b.end_date! ? 1 : -1))[0] ?? null
@@ -100,70 +41,36 @@ export default function Home() {
     setLastClosed(closed)
     setCurrentOpen(open)
 
+    // Show payment status immediately; fetch the summary only when it is visible.
     if (closed) {
-      const r = await api.get<Payment[]>(`/payments?period=${closed.start_date}`)
-      setPayments(r.data)
-    } else {
-      setPayments([])
-    }
-
-    if (open) {
-      try {
-        const [reportRes, sessionsRes, usesRes, additionalCostsRes] = await Promise.all([
-          api.get<Report>(`/payments/report/${open.start_date}`),
-          api.get<Session[]>(`/sessions?period=${open.start_date}`),
-          api.get<ShuttlecockUse[]>(`/periods/${open.start_date}/shuttlecocks`),
-          api.get<AdditionalCost[]>(`/periods/${open.start_date}/additional-costs`),
-        ])
-        setReport(reportRes.data)
-        setSessions(sessionsRes.data)
-        setShuttlecockTotal(usesRes.data.reduce((a, u) => a + u.price_each * u.tubes_used, 0))
-        setShuttlecockTubes(usesRes.data.reduce((a, u) => a + u.tubes_used, 0))
-        setAdditionalCosts(additionalCostsRes.data)
-
-        const [partResults, costPartResults] = await Promise.all([
-          Promise.all(sessionsRes.data.map((s) =>
-            api.get<Participant[]>(`/participants?session_date=${s.date}`).then((r) => [s.id, r.data] as const)
-          )),
-          Promise.all(additionalCostsRes.data.map((cost) =>
-            api
-              .get<AdditionalCostParticipant[]>(`/periods/${open.start_date}/additional-costs/${cost.id}/participants`)
-              .then((r) => [cost.id, r.data] as const)
-          )),
-        ])
-        setParticipantsBySession(Object.fromEntries(partResults))
-        setAdditionalCostParticipantsByCost(Object.fromEntries(costPartResults))
-      } catch {
-        setReport(null)
-        setSessions([])
-        setParticipantsBySession({})
-        setShuttlecockTotal(0)
-        setShuttlecockTubes(0)
-        setAdditionalCosts([])
-        setAdditionalCostParticipantsByCost({})
-      }
-    } else {
-      setReport(null)
-      setSessions([])
-      setParticipantsBySession({})
-      setShuttlecockTotal(0)
-      setShuttlecockTubes(0)
-      setAdditionalCosts([])
-      setAdditionalCostParticipantsByCost({})
-    }
+      const { data } = await api.get<Payment[]>(`/payments?period=${closed.start_date}`)
+      setPayments(data)
+      if (data.some((p) => !p.has_paid)) { setLoading(false); return }
+    } else { setPayments([]) }
     setLoading(false)
+    if (open) {
+      setSummaryLoading(true)
+      try {
+        const { data } = await api.get<MatrixPayload>(`/periods/${open.start_date}/matrix`)
+        setMatrix(data)
+      } catch { setSummaryError('Could not load the period summary.') }
+      finally { setSummaryLoading(false) }
+    }
+
   }, [])
 
   useEffect(() => {
     Promise.resolve()
       .then(refresh)
-      .catch(() => setLoading(false))
+      .catch(() => { setError('Could not load the home page.'); setLoading(false) })
   }, [refresh])
 
   async function togglePaid(p: Payment) {
     const endpoint = p.has_paid ? '/payments/mark-unpaid' : '/payments/mark-paid'
     await api.post(endpoint, { period_start_date: p.period_start_date, user_telegram_id: p.user_telegram_id })
-    if (lastClosed) loadPayments(lastClosed.start_date)
+    const { data } = await api.get<Payment[]>(`/payments?period=${p.period_start_date}`)
+    setPayments(data)
+    if (data.every((payment) => payment.has_paid)) await refresh()
   }
 
   if (loading) {
@@ -175,7 +82,9 @@ export default function Home() {
     )
   }
 
-  const allPaid = payments.length > 0 && payments.every((p) => p.has_paid)
+  if (error) return <div className="card"><p role="alert">{error}</p><button className="btn btn-primary" onClick={() => void refresh().catch(() => setError('Could not load the home page.'))}>Retry</button></div>
+
+  const allPaid = payments.every((p) => p.has_paid)
   const unpaidCount = payments.filter((p) => !p.has_paid).length
   const unpaidTotal = payments.filter((p) => !p.has_paid).reduce((a, p) => a + p.amount, 0)
 
@@ -246,9 +155,9 @@ export default function Home() {
           <div className="card-header">
             <h3>Current period preview</h3>
             <span className="chip">from {currentOpen.start_date}</span>
-            {report && (
+            {matrix && (
               <span className="pill pill-accent">
-                Total €{report.total_period_money.toFixed(2)}
+                Total €{matrix.total_period_money.toFixed(2)}
               </span>
             )}
             <div className="card-header-actions">
@@ -258,17 +167,19 @@ export default function Home() {
             </div>
           </div>
 
-          <MoneyMatrix
-            sessions={sessions}
-            participantsBySession={participantsBySession}
-            shuttlecockTotal={shuttlecockTotal}
-            shuttlecockTubes={shuttlecockTubes}
-            additionalCosts={additionalCosts}
-            additionalCostParticipantsByCost={additionalCostParticipantsByCost}
-            totalPeriodMoney={report?.total_period_money ?? 0}
-            personalReport={report?.personal_period_money}
-            users={users}
-          />
+          {summaryLoading && <div className="empty-state" role="status">Loading period summary…</div>}
+          {summaryError && <div className="error-banner" role="alert">{summaryError} <button className="btn btn-sm btn-ghost" onClick={() => void refresh().catch(() => setError('Could not load the home page.'))}>Retry</button></div>}
+          {matrix && !summaryLoading && !summaryError && <MoneyMatrix
+            sessions={matrix.sessions}
+            participantsBySession={matrix.participants_by_session}
+            shuttlecockTotal={matrix.shuttlecock_total}
+            shuttlecockTubes={matrix.shuttlecock_tubes}
+            additionalCosts={matrix.additional_costs}
+            additionalCostParticipantsByCost={matrix.additional_cost_participants_by_cost}
+            totalPeriodMoney={matrix.total_period_money}
+            personalReport={matrix.personal_report}
+            users={matrix.users}
+          />}
         </div>
       ) : (
         <div className="card empty-state">
